@@ -1,6 +1,3 @@
-[submodule "nimbusU-backend"]
-	path = nimbusU-backend
-	url = git@github.com:SureshAmal/NimbusU-backend.git
 [submodule "NimbusU-frontend"]
 	path = NimbusU-frontend
 	url = git@github.com:SureshAmal/NimbusU-frontend.git
