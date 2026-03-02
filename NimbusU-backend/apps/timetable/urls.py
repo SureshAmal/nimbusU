@@ -1,0 +1,24 @@
+"""URL routing for the timetable app."""
+
+from django.urls import path
+
+from . import views
+
+app_name = "timetable"
+
+urlpatterns = [
+    # Rooms
+    path("timetable/rooms/", views.RoomListCreateView.as_view(), name="room-list-create"),
+    path("timetable/rooms/<uuid:pk>/", views.RoomDetailView.as_view(), name="room-detail"),
+    # Timetable entries
+    path("timetable/", views.TimetableListCreateView.as_view(), name="timetable-list-create"),
+    path("timetable/me/", views.MyTimetableView.as_view(), name="my-timetable"),
+    path("timetable/conflicts/", views.TimetableConflictsView.as_view(), name="timetable-conflicts"),
+    path("timetable/<uuid:pk>/", views.TimetableDetailView.as_view(), name="timetable-detail"),
+    # Attendance
+    path("attendance/mark/", views.BulkAttendanceView.as_view(), name="bulk-attendance"),
+    path("attendance/me/", views.MyAttendanceView.as_view(), name="my-attendance"),
+    path("attendance/me/<uuid:offering_id>/", views.MyCourseAttendanceView.as_view(), name="my-course-attendance"),
+    path("attendance/course/<uuid:offering_id>/", views.CourseAttendanceView.as_view(), name="course-attendance"),
+    path("attendance/<uuid:pk>/", views.AttendanceEditView.as_view(), name="attendance-edit"),
+]
