@@ -5,9 +5,11 @@ export interface User {
     email: string;
     first_name: string;
     last_name: string;
-    role: "admin" | "faculty" | "student";
+    role: "admin" | "faculty" | "dean" | "head" | "student";
     department: string | null;
     department_name: string | null;
+    school_name: string | null;
+    program_name: string | null;
     profile_picture: string | null;
     phone: string | null;
     is_active: boolean;
@@ -22,10 +24,13 @@ export interface User {
 export interface StudentProfile {
     id: string;
     student_id_number: string;
+    register_no?: string | null;
     program: string;
     current_semester: number;
     admission_date: string;
     batch_year: number;
+    batch?: string | null;
+    division?: string | null;
 }
 
 export interface FacultyProfile {
@@ -37,10 +42,21 @@ export interface FacultyProfile {
     consultation_hours: Record<string, unknown>;
 }
 
+export interface School {
+    id: string;
+    name: string;
+    code: string;
+    dean: string | null;
+    dean_name: string | null;
+    created_at: string;
+}
+
 export interface Department {
     id: string;
     name: string;
     code: string;
+    school: string | null;
+    school_name: string | null;
     head: string | null;
     head_name: string | null;
     created_at: string;
@@ -177,8 +193,10 @@ export interface TimetableEntry {
     course_name: string;
     course_code: string;
     faculty_name: string;
-    room: string;
-    room_name: string;
+    batch: string;
+    subject_type: "classroom" | "lab" | "tutorial";
+    subject_type_display: string;
+    location: string;
     day_of_week: number;
     day_name: string;
     start_time: string;

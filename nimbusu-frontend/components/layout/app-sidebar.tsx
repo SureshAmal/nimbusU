@@ -24,6 +24,7 @@ import {
     BarChart3,
     ScrollText,
     Settings,
+    Library,
 } from "lucide-react";
 import {
     Sidebar,
@@ -36,9 +37,9 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
 
 /* ─── Navigation items per role ───────────────────────────────────── */
@@ -46,6 +47,7 @@ import { useAuth } from "@/lib/auth";
 const adminNav = [
     { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
     { title: "Users", url: "/admin/users", icon: Users },
+    { title: "Schools", url: "/admin/schools", icon: Library },
     { title: "Departments", url: "/admin/departments", icon: Building2 },
     { title: "Academics", url: "/admin/academics", icon: GraduationCap },
     { title: "Timetable", url: "/admin/timetable", icon: Calendar },
@@ -109,29 +111,38 @@ export function AppSidebar() {
     const { theme, setTheme } = useTheme();
     const navItems = getNavItems(user?.role);
     const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
+    useEffect(() => {
+        const timer = setTimeout(() => setMounted(true), 0);
+        return () => clearTimeout(timer);
+    }, []);
 
     return (
-        <Sidebar>
-            <SidebarHeader className="px-4 py-4">
-                <Link href="/" className="flex items-center gap-2">
-                    <div
-                        className="flex h-8 w-8 items-center justify-center rounded-lg"
-                        style={{
-                            background: "var(--primary)",
-                            borderRadius: "var(--radius)",
-                        }}
-                    >
-                        <GraduationCap
-                            className="h-5 w-5"
-                            style={{ color: "var(--primary-foreground)" }}
-                        />
-                    </div>
-                    <span className="text-lg font-bold">NimbusU</span>
-                </Link>
-            </SidebarHeader>
+        <Sidebar collapsible="icon">
+            <SidebarHeader>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton size="lg" asChild>
+                            <Link href="/">
+                                <div
+                                    className="flex aspect-square size-8 items-center justify-center rounded-md"
+                                    style={{
+                                        background: "var(--primary)",
+                                        borderRadius: "calc(var(--radius) - 2px)",
+                                    }}
+                                >
+                                    <GraduationCap
+                                        className="size-4 shrink-0"
+                                        style={{ color: "var(--primary-foreground)" }}
+                                    />
+                                </div>
+                                <span className="truncate font-bold text-lg">NimbusU</span>
+                            </Link>
+                        </SidebarMenuButton>
 
-            <Separator />
+                    </SidebarMenuItem>
+                </SidebarMenu>
+
+            </SidebarHeader>
 
             <SidebarContent>
                 <SidebarGroup>
@@ -157,8 +168,7 @@ export function AppSidebar() {
                 </SidebarGroup>
             </SidebarContent>
 
-            <SidebarFooter className="p-2 space-y-1">
-                <Separator className="my-1" />
+            <SidebarFooter>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild tooltip="Settings">
@@ -170,7 +180,13 @@ export function AppSidebar() {
                     </SidebarMenuItem>
                     <SidebarMenuItem>
                         <SidebarMenuButton
-                            tooltip={mounted ? (theme === "dark" ? "Light mode" : "Dark mode") : "Toggle theme"}
+                            tooltip={
+                                mounted
+                                    ? theme === "dark"
+                                        ? "Light mode"
+                                        : "Dark mode"
+                                    : "Toggle theme"
+                            }
                             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                         >
                             {mounted ? (
@@ -182,7 +198,13 @@ export function AppSidebar() {
                             ) : (
                                 <Sun className="h-4 w-4" />
                             )}
-                            <span>{mounted ? (theme === "dark" ? "Light Mode" : "Dark Mode") : "Toggle Theme"}</span>
+                            <span>
+                                {mounted
+                                    ? theme === "dark"
+                                        ? "Light Mode"
+                                        : "Dark Mode"
+                                    : "Toggle Theme"}
+                            </span>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>

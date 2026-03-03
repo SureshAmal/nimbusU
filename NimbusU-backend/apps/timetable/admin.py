@@ -13,8 +13,8 @@ class RoomAdmin(admin.ModelAdmin):
 
 @admin.register(TimetableEntry)
 class TimetableEntryAdmin(admin.ModelAdmin):
-    list_display = ["course_offering", "room", "day_of_week", "start_time", "end_time", "is_active"]
-    list_filter = ["day_of_week", "is_active"]
+    list_display = ["course_offering", "batch", "subject_type", "location", "day_of_week", "start_time", "end_time", "is_active"]
+    list_filter = ["day_of_week", "subject_type", "batch", "is_active"]
 
 
 @admin.register(AttendanceRecord)

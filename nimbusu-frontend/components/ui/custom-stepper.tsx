@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 /* ═══════════════════════════════════════════════════════════════════
    CustomStepper — Number input with − / + buttons, keyboard accessible
    ═══════════════════════════════════════════════════════════════════ */
@@ -13,6 +15,8 @@ interface CustomStepperProps {
 }
 
 export function CustomStepper({ value, min, max, step = 1, onChange }: CustomStepperProps) {
+    const [active, setActive] = useState(false);
+
     function decrement() {
         onChange(Math.max(min, value - step));
     }
@@ -21,6 +25,22 @@ export function CustomStepper({ value, min, max, step = 1, onChange }: CustomSte
     }
 
     function onKeyDown(e: React.KeyboardEvent) {
+        if (!active) {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setActive(true);
+            }
+            // Allow Arrow navigation to pass through to the parent
+            return;
+        }
+
+        if (e.key === "Escape" || e.key === "Enter") {
+            e.preventDefault();
+            e.stopPropagation(); // Prevent modal from closing
+            setActive(false);
+            return;
+        }
+
         if (e.key === "ArrowUp" || e.key === "ArrowRight") {
             e.preventDefault();
             increment();
@@ -38,11 +58,12 @@ export function CustomStepper({ value, min, max, step = 1, onChange }: CustomSte
 
     return (
         <div
-            className="inline-flex items-center overflow-hidden focus-within:ring-2 focus-within:ring-offset-1"
+            className="inline-flex items-center overflow-hidden focus-visible:outline-hidden"
             style={{
                 borderRadius: "var(--radius, 8px)",
                 border: "1px solid var(--border)",
-                ringColor: "var(--ring)",
+                boxShadow: active ? "0 0 0 2px var(--ring)" : "none",
+                transition: "box-shadow 0.1s ease",
             }}
             role="spinbutton"
             aria-valuenow={value}
@@ -50,6 +71,7 @@ export function CustomStepper({ value, min, max, step = 1, onChange }: CustomSte
             aria-valuemax={max}
             tabIndex={0}
             onKeyDown={onKeyDown}
+            onBlur={() => setActive(false)}
         >
             <button
                 onClick={decrement}

@@ -641,6 +641,164 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/academics/schools/:
+    get:
+      operationId: academics_schools_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - academics
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSchoolList'
+          description: ''
+    post:
+      operationId: academics_schools_create
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchoolRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SchoolRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SchoolRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/School'
+          description: ''
+  /api/v1/academics/schools/{id}/:
+    get:
+      operationId: academics_schools_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/School'
+          description: ''
+    put:
+      operationId: academics_schools_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchoolRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SchoolRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SchoolRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/School'
+          description: ''
+    patch:
+      operationId: academics_schools_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSchoolRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSchoolRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSchoolRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/School'
+          description: ''
+    delete:
+      operationId: academics_schools_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - academics
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/academics/semesters/:
     get:
       operationId: academics_semesters_list
@@ -4672,6 +4830,13 @@ components:
         code:
           type: string
           maxLength: 20
+        school:
+          type: string
+          format: uuid
+          nullable: true
+        school_name:
+          type: string
+          readOnly: true
         head:
           type: string
           format: uuid
@@ -4689,6 +4854,7 @@ components:
       - head_name
       - id
       - name
+      - school_name
     DepartmentRequest:
       type: object
       properties:
@@ -4700,6 +4866,10 @@ components:
           type: string
           minLength: 1
           maxLength: 20
+        school:
+          type: string
+          format: uuid
+          nullable: true
         head:
           type: string
           format: uuid
@@ -4903,6 +5073,30 @@ components:
       - designation
       - employee_id
       - id
+      - joining_date
+    FacultyProfileRequest:
+      type: object
+      properties:
+        employee_id:
+          type: string
+          minLength: 1
+          maxLength: 50
+        designation:
+          type: string
+          minLength: 1
+          maxLength: 100
+        specialization:
+          type: string
+          nullable: true
+          maxLength: 200
+        joining_date:
+          type: string
+          format: date
+        consultation_hours:
+          nullable: true
+      required:
+      - designation
+      - employee_id
       - joining_date
     ForumDetailResponse:
       type: object
@@ -5569,6 +5763,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Room'
+    PaginatedSchoolList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/School'
     PaginatedSemesterList:
       type: object
       required:
@@ -5864,6 +6081,10 @@ components:
           type: string
           minLength: 1
           maxLength: 20
+        school:
+          type: string
+          format: uuid
+          nullable: true
         head:
           type: string
           format: uuid
@@ -5949,6 +6170,21 @@ components:
           $ref: '#/components/schemas/RoomTypeEnum'
         is_available:
           type: boolean
+    PatchedSchoolRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        code:
+          type: string
+          minLength: 1
+          maxLength: 20
+        dean:
+          type: string
+          format: uuid
+          nullable: true
     PatchedSemesterRequest:
       type: object
       properties:
@@ -6030,6 +6266,14 @@ components:
           type: integer
           maximum: 2147483647
           minimum: -2147483648
+        student_profile:
+          allOf:
+          - $ref: '#/components/schemas/StudentProfileRequest'
+          nullable: true
+        faculty_profile:
+          allOf:
+          - $ref: '#/components/schemas/FacultyProfileRequest'
+          nullable: true
     Program:
       type: object
       properties:
@@ -6252,6 +6496,54 @@ components:
         * `lab` - Laboratory
         * `auditorium` - Auditorium
         * `conference` - Conference Room
+    School:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        code:
+          type: string
+          maxLength: 20
+        dean:
+          type: string
+          format: uuid
+          nullable: true
+        dean_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - code
+      - created_at
+      - dean_name
+      - id
+      - name
+    SchoolRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        code:
+          type: string
+          minLength: 1
+          maxLength: 20
+        dean:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - code
+      - name
     Semester:
       type: object
       properties:
@@ -6313,6 +6605,10 @@ components:
         student_id_number:
           type: string
           maxLength: 50
+        register_no:
+          type: string
+          nullable: true
+          maxLength: 50
         program:
           type: string
           format: uuid
@@ -6328,11 +6624,58 @@ components:
           type: integer
           maximum: 2147483647
           minimum: -2147483648
+        batch:
+          type: string
+          nullable: true
+          maxLength: 50
+        division:
+          type: string
+          nullable: true
+          maxLength: 50
       required:
       - admission_date
       - batch_year
       - current_semester
       - id
+      - student_id_number
+    StudentProfileRequest:
+      type: object
+      properties:
+        student_id_number:
+          type: string
+          minLength: 1
+          maxLength: 50
+        register_no:
+          type: string
+          nullable: true
+          maxLength: 50
+        program:
+          type: string
+          format: uuid
+          nullable: true
+        current_semester:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        admission_date:
+          type: string
+          format: date
+        batch_year:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        batch:
+          type: string
+          nullable: true
+          maxLength: 50
+        division:
+          type: string
+          nullable: true
+          maxLength: 50
+      required:
+      - admission_date
+      - batch_year
+      - current_semester
       - student_id_number
     Submission:
       type: object
@@ -6622,6 +6965,14 @@ components:
           type: string
           nullable: true
           maxLength: 20
+        student_profile:
+          allOf:
+          - $ref: '#/components/schemas/StudentProfile'
+          nullable: true
+        faculty_profile:
+          allOf:
+          - $ref: '#/components/schemas/FacultyProfile'
+          nullable: true
       required:
       - email
       - first_name
@@ -6659,6 +7010,14 @@ components:
           type: string
           nullable: true
           maxLength: 20
+        student_profile:
+          allOf:
+          - $ref: '#/components/schemas/StudentProfileRequest'
+          nullable: true
+        faculty_profile:
+          allOf:
+          - $ref: '#/components/schemas/FacultyProfileRequest'
+          nullable: true
       required:
       - email
       - first_name
@@ -6723,23 +7082,19 @@ components:
           allOf:
           - $ref: '#/components/schemas/StudentProfile'
           nullable: true
-          readOnly: true
         faculty_profile:
           allOf:
           - $ref: '#/components/schemas/FacultyProfile'
           nullable: true
-          readOnly: true
       required:
       - created_at
       - department_name
       - email
-      - faculty_profile
       - first_name
       - id
       - last_login
       - last_name
       - role
-      - student_profile
       - updated_at
     UserDetailRequest:
       type: object
@@ -6778,6 +7133,14 @@ components:
           type: integer
           maximum: 2147483647
           minimum: -2147483648
+        student_profile:
+          allOf:
+          - $ref: '#/components/schemas/StudentProfileRequest'
+          nullable: true
+        faculty_profile:
+          allOf:
+          - $ref: '#/components/schemas/FacultyProfileRequest'
+          nullable: true
       required:
       - email
       - first_name
@@ -6825,6 +7188,14 @@ components:
           type: string
           format: date-time
           readOnly: true
+        student_profile:
+          allOf:
+          - $ref: '#/components/schemas/StudentProfile'
+          nullable: true
+        faculty_profile:
+          allOf:
+          - $ref: '#/components/schemas/FacultyProfile'
+          nullable: true
       required:
       - created_at
       - department_name

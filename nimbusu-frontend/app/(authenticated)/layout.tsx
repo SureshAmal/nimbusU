@@ -34,7 +34,10 @@ function useContextMenuGroups(): ContextMenuGroup[] {
     const { theme, setTheme } = useTheme();
     const router = useRouter();
     const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
+    useEffect(() => {
+        const timer = setTimeout(() => setMounted(true), 0);
+        return () => clearTimeout(timer);
+    }, []);
     const go = (url: string) => () => router.push(url);
 
     const navItems: ContextMenuGroup = {
@@ -97,11 +100,13 @@ export default function AuthenticatedLayout({
     return (
         <SidebarProvider>
             <AppSidebar />
-            <SidebarInset>
+            <SidebarInset className="overflow-hidden">
                 <AppHeader />
-                <SearchableContextMenu groups={groups}>
-                    <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
-                </SearchableContextMenu>
+                <div className="flex-1 overflow-auto">
+                    <SearchableContextMenu groups={groups}>
+                        <main className="p-4 md:p-6">{children}</main>
+                    </SearchableContextMenu>
+                </div>
             </SidebarInset>
         </SidebarProvider>
     );

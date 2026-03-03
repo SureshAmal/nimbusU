@@ -2,6 +2,7 @@ import api from "@/lib/api";
 import type {
     PaginatedResponse,
     User,
+    School,
     Department,
     Program,
     Semester,
@@ -45,6 +46,18 @@ export const usersService = {
     },
 };
 
+/* ─── Schools ─────────────────────────────────────────────────────── */
+
+export const schoolsService = {
+    list: () => api.get<PaginatedResponse<School>>("/academics/schools/"),
+    get: (id: string) => api.get<School>(`/academics/schools/${id}/`),
+    create: (data: Partial<School>) =>
+        api.post<School>("/academics/schools/", data),
+    update: (id: string, data: Partial<School>) =>
+        api.patch<School>(`/academics/schools/${id}/`, data),
+    delete: (id: string) => api.delete(`/academics/schools/${id}/`),
+};
+
 /* ─── Departments ─────────────────────────────────────────────────── */
 
 export const departmentsService = {
@@ -67,6 +80,7 @@ export const programsService = {
         api.post<Program>("/academics/programs/", data),
     update: (id: string, data: Partial<Program>) =>
         api.patch<Program>(`/academics/programs/${id}/`, data),
+    delete: (id: string) => api.delete(`/academics/programs/${id}/`),
 };
 
 export const semestersService = {
@@ -76,6 +90,7 @@ export const semestersService = {
         api.post<Semester>("/academics/semesters/", data),
     update: (id: string, data: Partial<Semester>) =>
         api.patch<Semester>(`/academics/semesters/${id}/`, data),
+    delete: (id: string) => api.delete(`/academics/semesters/${id}/`),
 };
 
 export const coursesService = {
@@ -86,6 +101,7 @@ export const coursesService = {
         api.post<Course>("/academics/courses/", data),
     update: (id: string, data: Partial<Course>) =>
         api.patch<Course>(`/academics/courses/${id}/`, data),
+    delete: (id: string) => api.delete(`/academics/courses/${id}/`),
 };
 
 export const offeringsService = {
@@ -94,7 +110,10 @@ export const offeringsService = {
     get: (id: string) => api.get<CourseOffering>(`/academics/offerings/${id}/`),
     create: (data: Partial<CourseOffering>) =>
         api.post<CourseOffering>("/academics/offerings/", data),
+    update: (id: string, data: Partial<CourseOffering>) =>
+        api.patch<CourseOffering>(`/academics/offerings/${id}/`, data),
     students: (id: string) => api.get(`/academics/offerings/${id}/students/`),
+    delete: (id: string) => api.delete(`/academics/offerings/${id}/`),
 };
 
 export const enrollmentsService = {

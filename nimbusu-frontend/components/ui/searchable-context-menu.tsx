@@ -49,6 +49,13 @@ export function SearchableContextMenu({ groups, children }: ContextMenuProps) {
     const triggerRef = useRef<HTMLDivElement>(null);
 
     const handleContextMenu = useCallback((e: React.MouseEvent) => {
+        // If the right-click originated inside a Radix ContextMenu trigger,
+        // let that component handle it instead of the global command palette.
+        const target = e.target as HTMLElement;
+        if (target.closest('[data-slot="context-menu-trigger"]')) {
+            return;
+        }
+
         e.preventDefault();
         e.stopPropagation();
 

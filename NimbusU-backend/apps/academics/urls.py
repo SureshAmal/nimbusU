@@ -7,6 +7,9 @@ from . import views
 app_name = "academics"
 
 urlpatterns = [
+    # Schools
+    path("academics/schools/", views.SchoolListCreateView.as_view(), name="school-list-create"),
+    path("academics/schools/<uuid:pk>/", views.SchoolDetailView.as_view(), name="school-detail"),
     # Departments
     path("departments/", views.DepartmentListCreateView.as_view(), name="department-list-create"),
     path("departments/<uuid:pk>/", views.DepartmentDetailView.as_view(), name="department-detail"),

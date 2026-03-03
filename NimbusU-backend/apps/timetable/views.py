@@ -2,7 +2,7 @@
 
 from django.db.models import Q
 from drf_spectacular.utils import extend_schema, extend_schema_view, inline_serializer
-from rest_framework import generics, permissions, serializers, status
+from rest_framework import generics, permissions, serializers, status, filters
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -43,13 +43,12 @@ class RoomDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class TimetableListCreateView(generics.ListCreateAPIView):
     serializer_class = TimetableEntrySerializer
-    filterset_fields = ["semester", "day_of_week", "room", "is_active"]
+    filterset_fields = ["semester", "day_of_week", "batch", "subject_type", "is_active"]
 
     def get_queryset(self):
         qs = TimetableEntry.objects.select_related(
             "course_offering__course",
             "course_offering__faculty",
-            "room",
         ).all()
         faculty = self.request.query_params.get("faculty")
         department = self.request.query_params.get("department")
@@ -73,7 +72,6 @@ class TimetableDetailView(generics.RetrieveUpdateDestroyAPIView):
         return TimetableEntry.objects.select_related(
             "course_offering__course",
             "course_offering__faculty",
-            "room",
         ).all()
 
 
@@ -89,10 +87,13 @@ class MyTimetableView(generics.ListAPIView):
         qs = TimetableEntry.objects.select_related(
             "course_offering__course",
             "course_offering__faculty",
-            "room",
         ).filter(is_active=True)
 
-        if user.role == "faculty":
+        batch = self.request.query_params.get("batch")
+        if batch:
+            qs = qs.filter(batch=batch)
+
+        if user.role in ("faculty", "dean", "head"):
             return qs.filter(course_offering__faculty=user)
         elif user.role == "student":
             offering_ids = Enrollment.objects.filter(
@@ -103,7 +104,7 @@ class MyTimetableView(generics.ListAPIView):
 
 
 class TimetableConflictsView(APIView):
-    """GET /api/v1/timetable/conflicts/ — check room/faculty conflicts."""
+    """GET /api/v1/timetable/conflicts/ — check location/faculty conflicts."""
 
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
@@ -116,7 +117,7 @@ class TimetableConflictsView(APIView):
     )
     def get(self, request):
         entries = TimetableEntry.objects.filter(is_active=True).select_related(
-            "course_offering__course", "course_offering__faculty", "room"
+            "course_offering__course", "course_offering__faculty"
         )
         conflicts = []
         entries_list = list(entries)
@@ -127,10 +128,11 @@ class TimetableConflictsView(APIView):
                 if a.semester_id != b.semester_id:
                     continue
                 if a.start_time < b.end_time and b.start_time < a.end_time:
-                    if a.room_id == b.room_id:
+                    # Same location conflict (only if location is non-empty)
+                    if a.location and a.location == b.location:
                         conflicts.append({
-                            "type": "room",
-                            "room": str(a.room),
+                            "type": "location",
+                            "location": a.location,
                             "entry_a": TimetableEntrySerializer(a).data,
                             "entry_b": TimetableEntrySerializer(b).data,
                         })

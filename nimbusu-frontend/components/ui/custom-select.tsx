@@ -34,7 +34,8 @@ export function CustomSelect({ value, options, onChange, placeholder }: CustomSe
     useEffect(() => {
         if (open) {
             const idx = options.findIndex((o) => o.value === value);
-            setFocusIdx(idx >= 0 ? idx : 0);
+            const timer = setTimeout(() => setFocusIdx(idx >= 0 ? idx : 0), 0);
+            return () => clearTimeout(timer);
         }
     }, [open, options, value]);
 
@@ -63,11 +64,11 @@ export function CustomSelect({ value, options, onChange, placeholder }: CustomSe
     const onKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
             if (!open) {
-                if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
+                if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     setOpen(true);
                 }
-                return;
+                return; // Let Arrow keys bubble up to the popup navigation handler when closed
             }
 
             switch (e.key) {
@@ -90,6 +91,7 @@ export function CustomSelect({ value, options, onChange, placeholder }: CustomSe
                     break;
                 case "Escape":
                     e.preventDefault();
+                    e.stopPropagation(); // Prevent modal from closing
                     setOpen(false);
                     triggerRef.current?.focus();
                     break;

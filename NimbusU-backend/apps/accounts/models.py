@@ -33,6 +33,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Role(models.TextChoices):
         ADMIN = "admin", "Admin"
         FACULTY = "faculty", "Faculty"
+        DEAN = "dean", "Dean"
+        HEAD = "head", "Faculty Head"
         STUDENT = "student", "Student"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -84,6 +86,7 @@ class StudentProfile(models.Model):
         User, on_delete=models.CASCADE, related_name="student_profile"
     )
     student_id_number = models.CharField(max_length=50, unique=True)
+    register_no = models.CharField(max_length=50, unique=True, null=True, blank=True)
     program = models.ForeignKey(
         "academics.Program",
         on_delete=models.SET_NULL,
@@ -93,6 +96,8 @@ class StudentProfile(models.Model):
     current_semester = models.IntegerField()
     admission_date = models.DateField()
     batch_year = models.IntegerField()
+    batch = models.CharField(max_length=50, null=True, blank=True)
+    division = models.CharField(max_length=50, null=True, blank=True)
 
     class Meta:
         db_table = "student_profiles"

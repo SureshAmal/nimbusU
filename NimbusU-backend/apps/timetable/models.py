@@ -31,7 +31,12 @@ class Room(models.Model):
 
 
 class TimetableEntry(models.Model):
-    """A single timetable slot."""
+    """A single timetable slot — batch-based."""
+
+    class SubjectType(models.TextChoices):
+        CLASSROOM = "classroom", "Classroom"
+        LAB = "lab", "Laboratory"
+        TUTORIAL = "tutorial", "Tutorial"
 
     DAY_CHOICES = [
         (0, "Monday"),
@@ -49,8 +54,16 @@ class TimetableEntry(models.Model):
         on_delete=models.CASCADE,
         related_name="timetable_entries",
     )
-    room = models.ForeignKey(
-        Room, on_delete=models.CASCADE, related_name="timetable_entries"
+    batch = models.CharField(max_length=50, default="", help_text="e.g. A1, B2, CS-2024")
+    subject_type = models.CharField(
+        max_length=20,
+        choices=SubjectType.choices,
+        default=SubjectType.CLASSROOM,
+    )
+    location = models.CharField(
+        max_length=200,
+        default="",
+        help_text="Free-text room/lab, e.g. 'Floor 1 Room 150', 'Lab B1'",
     )
     day_of_week = models.IntegerField(choices=DAY_CHOICES)
     start_time = models.TimeField()
@@ -70,7 +83,7 @@ class TimetableEntry(models.Model):
         day_name = dict(self.DAY_CHOICES).get(self.day_of_week, "")
         return (
             f"{self.course_offering} - {day_name} "
-            f"{self.start_time}-{self.end_time}"
+            f"{self.start_time}-{self.end_time} ({self.batch})"
         )
 
 

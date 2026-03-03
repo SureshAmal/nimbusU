@@ -21,7 +21,7 @@ class IsFaculty(BasePermission):
         return (
             request.user
             and request.user.is_authenticated
-            and request.user.role == "faculty"
+            and request.user.role in ("faculty", "dean", "head")
         )
 
 
@@ -43,7 +43,7 @@ class IsAdminOrFaculty(BasePermission):
         return (
             request.user
             and request.user.is_authenticated
-            and request.user.role in ("admin", "faculty")
+            and request.user.role in ("admin", "faculty", "dean", "head")
         )
 
 

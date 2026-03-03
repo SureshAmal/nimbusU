@@ -9,31 +9,19 @@ from .models import AuditLog, FacultyProfile, StudentProfile
 User = get_user_model()
 
 
-class UserListSerializer(serializers.ModelSerializer):
-    """Lightweight user serializer for listings."""
-
-    department_name = serializers.CharField(
-        source="department.name", read_only=True, default=None
-    )
-
-    class Meta:
-        model = User
-        fields = [
-            "id", "email", "first_name", "last_name", "role",
-            "department", "department_name", "phone",
-            "is_active", "last_login", "created_at",
-        ]
-        read_only_fields = ["id", "created_at", "last_login"]
-
-
 class StudentProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentProfile
         fields = [
-            "id", "student_id_number", "program",
+            "id", "student_id_number", "register_no", "program",
             "current_semester", "admission_date", "batch_year",
+            "batch", "division",
         ]
         read_only_fields = ["id"]
+        extra_kwargs = {
+            "student_id_number": {"validators": []},
+            "register_no": {"validators": []},
+        }
 
 
 class FacultyProfileSerializer(serializers.ModelSerializer):
@@ -44,6 +32,42 @@ class FacultyProfileSerializer(serializers.ModelSerializer):
             "specialization", "joining_date", "consultation_hours",
         ]
         read_only_fields = ["id"]
+        extra_kwargs = {
+            "employee_id": {"validators": []},
+        }
+
+
+class UserListSerializer(serializers.ModelSerializer):
+    """Lightweight user serializer for listings."""
+
+    department_name = serializers.CharField(
+        source="department.name", read_only=True, default=None
+    )
+    school_name = serializers.CharField(
+        source="department.school.name", read_only=True, default=None
+    )
+    program_name = serializers.SerializerMethodField()
+    student_profile = StudentProfileSerializer(required=False, allow_null=True)
+    faculty_profile = FacultyProfileSerializer(required=False, allow_null=True)
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "email", "first_name", "last_name", "role",
+            "department", "department_name", "school_name", "program_name",
+            "phone",
+            "is_active", "last_login", "created_at",
+            "student_profile", "faculty_profile",
+        ]
+        read_only_fields = ["id", "created_at", "last_login"]
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_program_name(self, obj):
+        profile = getattr(obj, "student_profile", None)
+        if profile and profile.program:
+            return profile.program.name
+        return None
+
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
@@ -52,57 +76,81 @@ class UserDetailSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(
         source="department.name", read_only=True, default=None
     )
-    student_profile = serializers.SerializerMethodField()
-    faculty_profile = serializers.SerializerMethodField()
+    school_name = serializers.CharField(
+        source="department.school.name", read_only=True, default=None
+    )
+    program_name = serializers.SerializerMethodField()
+    student_profile = StudentProfileSerializer(required=False, allow_null=True)
+    faculty_profile = FacultyProfileSerializer(required=False, allow_null=True)
 
     class Meta:
         model = User
         fields = [
             "id", "email", "first_name", "last_name", "role",
-            "department", "department_name", "profile_picture",
+            "department", "department_name", "school_name", "program_name",
+            "profile_picture",
             "phone", "is_active", "failed_login_attempts",
             "last_login", "created_at", "updated_at",
             "student_profile", "faculty_profile",
         ]
         read_only_fields = ["id", "created_at", "updated_at", "last_login"]
 
-    @extend_schema_field(StudentProfileSerializer(allow_null=True))
-    def get_student_profile(self, obj) -> dict | None:
-        if obj.role != "student":
-            return None
-        try:
-            return StudentProfileSerializer(obj.student_profile).data
-        except StudentProfile.DoesNotExist:
-            return None
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_program_name(self, obj):
+        profile = getattr(obj, "student_profile", None)
+        if profile and profile.program:
+            return profile.program.name
+        return None
 
-    @extend_schema_field(FacultyProfileSerializer(allow_null=True))
-    def get_faculty_profile(self, obj) -> dict | None:
-        if obj.role != "faculty":
-            return None
-        try:
-            return FacultyProfileSerializer(obj.faculty_profile).data
-        except FacultyProfile.DoesNotExist:
-            return None
+    def update(self, instance, validated_data):
+        student_data = validated_data.pop("student_profile", None)
+        faculty_data = validated_data.pop("faculty_profile", None)
+        
+        # Update user fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Update or create student profile
+        if instance.role == "student" and student_data is not None:
+            StudentProfile.objects.update_or_create(user=instance, defaults=student_data)
+            
+        # Update or create faculty profile for faculty, deans, and heads
+        if instance.role in ("faculty", "dean", "head") and faculty_data is not None:
+            FacultyProfile.objects.update_or_create(user=instance, defaults=faculty_data)
+            
+        return instance
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating users (admin only)."""
 
     password = serializers.CharField(write_only=True, min_length=8)
+    student_profile = StudentProfileSerializer(required=False, allow_null=True)
+    faculty_profile = FacultyProfileSerializer(required=False, allow_null=True)
 
     class Meta:
         model = User
         fields = [
             "id", "email", "password", "first_name", "last_name",
-            "role", "department", "phone",
+            "role", "department", "phone", "student_profile", "faculty_profile"
         ]
         read_only_fields = ["id"]
 
     def create(self, validated_data):
+        student_data = validated_data.pop("student_profile", None)
+        faculty_data = validated_data.pop("faculty_profile", None)
         password = validated_data.pop("password")
+        
         user = User(**validated_data)
         user.set_password(password)
         user.save()
+        
+        if user.role == "student" and student_data:
+            StudentProfile.objects.create(user=user, **student_data)
+        elif user.role in ("faculty", "dean", "head") and faculty_data:
+            FacultyProfile.objects.create(user=user, **faculty_data)
+            
         return user
 
 

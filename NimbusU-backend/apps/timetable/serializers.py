@@ -22,15 +22,17 @@ class TimetableEntrySerializer(serializers.ModelSerializer):
     faculty_name = serializers.CharField(
         source="course_offering.faculty.full_name", read_only=True
     )
-    room_name = serializers.CharField(source="room.name", read_only=True)
     day_name = serializers.CharField(source="get_day_of_week_display", read_only=True)
+    subject_type_display = serializers.CharField(
+        source="get_subject_type_display", read_only=True
+    )
 
     class Meta:
         model = TimetableEntry
         fields = [
             "id", "course_offering", "course_name", "course_code",
-            "faculty_name", "room", "room_name",
-            "day_of_week", "day_name", "start_time", "end_time",
+            "faculty_name", "batch", "subject_type", "subject_type_display",
+            "location", "day_of_week", "day_name", "start_time", "end_time",
             "semester", "is_active",
         ]
         read_only_fields = ["id"]

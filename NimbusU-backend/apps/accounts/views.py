@@ -107,10 +107,15 @@ class UserListCreateView(generics.ListCreateAPIView):
     """GET /api/v1/users/ — List users (admin).
     POST /api/v1/users/ — Create user (admin)."""
 
-    queryset = User.objects.select_related("department").all()
+    queryset = (
+        User.objects
+        .select_related("department__school")
+        .prefetch_related("student_profile__program", "faculty_profile")
+        .all()
+    )
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["role", "department", "is_active"]
+    filterset_fields = ["role", "department", "is_active", "department__school", "student_profile__current_semester"]
     search_fields = ["email", "first_name", "last_name"]
     ordering_fields = ["created_at", "email", "first_name"]
 
@@ -123,7 +128,12 @@ class UserListCreateView(generics.ListCreateAPIView):
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     """GET/PATCH/DELETE /api/v1/users/{id}/"""
 
-    queryset = User.objects.select_related("department").all()
+    queryset = (
+        User.objects
+        .select_related("department__school")
+        .prefetch_related("student_profile__program", "faculty_profile")
+        .all()
+    )
     serializer_class = UserDetailSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
 

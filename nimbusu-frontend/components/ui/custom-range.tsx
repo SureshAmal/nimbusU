@@ -18,6 +18,7 @@ interface CustomRangeProps {
 export function CustomRange({ value, min, max, step = 1, onChange, label }: CustomRangeProps) {
     const trackRef = useRef<HTMLDivElement>(null);
     const [dragging, setDragging] = useState(false);
+    const [active, setActive] = useState(false);
 
     const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
 
@@ -48,6 +49,22 @@ export function CustomRange({ value, min, max, step = 1, onChange, label }: Cust
 
     // Keyboard handling
     function onKeyDown(e: React.KeyboardEvent) {
+        if (!active) {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setActive(true);
+            }
+            // If not active, let ArrowDown/ArrowUp bubble up to parent navigation
+            return;
+        }
+
+        if (e.key === "Escape" || e.key === "Enter") {
+            e.preventDefault();
+            e.stopPropagation(); // Prevent modal from closing
+            setActive(false);
+            return;
+        }
+
         let newVal = value;
         switch (e.key) {
             case "ArrowRight":
@@ -93,8 +110,10 @@ export function CustomRange({ value, min, max, step = 1, onChange, label }: Cust
             aria-label={label}
             tabIndex={0}
             onKeyDown={onKeyDown}
+            onBlur={() => setActive(false)}
             onMouseDown={(e) => {
                 setDragging(true);
+                setActive(true);
                 updateFromEvent(e.clientX);
             }}
         >
@@ -128,8 +147,10 @@ export function CustomRange({ value, min, max, step = 1, onChange, label }: Cust
                     left: `${pct}%`,
                     background: "var(--primary)",
                     border: "3px solid white",
-                    boxShadow: "0 1px 4px oklch(0 0 0 / 25%)",
-                    transition: dragging ? "none" : "left 100ms ease",
+                    boxShadow: active
+                        ? "0 0 0 4px var(--ring)"
+                        : "0 1px 4px oklch(0 0 0 / 25%)",
+                    transition: dragging ? "none" : "left 100ms ease, box-shadow 100ms ease",
                 }}
             />
         </div>

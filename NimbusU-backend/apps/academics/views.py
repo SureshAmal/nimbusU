@@ -9,24 +9,48 @@ from rest_framework.views import APIView
 from apps.accounts.permissions import IsAdmin
 from apps.accounts.serializers import UserListSerializer
 
-from .models import Course, CourseOffering, Department, Enrollment, Program, Semester
+from .models import Course, CourseOffering, Department, Enrollment, Program, School, Semester
 from .serializers import (
     CourseOfferingSerializer,
     CourseSerializer,
     DepartmentSerializer,
     EnrollmentSerializer,
     ProgramSerializer,
+    SchoolSerializer,
     SemesterSerializer,
 )
 
 User = get_user_model()
 
 
+# ─── Schools ────────────────────────────────────────────────────────────
+
+
+class SchoolListCreateView(generics.ListCreateAPIView):
+    queryset = School.objects.select_related("dean").all()
+    serializer_class = SchoolSerializer
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [permissions.IsAuthenticated(), IsAdmin()]
+        return [permissions.IsAuthenticated()]
+
+
+class SchoolDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = School.objects.select_related("dean").all()
+    serializer_class = SchoolSerializer
+
+    def get_permissions(self):
+        if self.request.method in ("PATCH", "PUT", "DELETE"):
+            return [permissions.IsAuthenticated(), IsAdmin()]
+        return [permissions.IsAuthenticated()]
+
+
 # ─── Departments ────────────────────────────────────────────────────────
 
 
 class DepartmentListCreateView(generics.ListCreateAPIView):
-    queryset = Department.objects.select_related("head").all()
+    queryset = Department.objects.select_related("head", "school").all()
     serializer_class = DepartmentSerializer
 
     def get_permissions(self):
@@ -36,7 +60,7 @@ class DepartmentListCreateView(generics.ListCreateAPIView):
 
 
 class DepartmentDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Department.objects.select_related("head").all()
+    queryset = Department.objects.select_related("head", "school").all()
     serializer_class = DepartmentSerializer
 
     def get_permissions(self):

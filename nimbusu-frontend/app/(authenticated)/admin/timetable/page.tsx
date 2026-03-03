@@ -1,92 +1,194 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { timetableService } from "@/services/api";
 import type { TimetableEntry } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Calendar } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { semestersService } from "@/services/api";
+import type { Semester } from "@/lib/types";
+import { EventCalendar, CalendarEvent } from "@/components/application/calendar";
+import { parse, setDay, startOfWeek, addWeeks } from "date-fns";
 
-const DAYS = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const TIME_SLOTS = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+const SUBJECT_COLORS: Record<string, string> = {
+    classroom: "bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-300 dark:border-blue-600",
+    lab: "bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:text-emerald-300 dark:border-emerald-600",
+    tutorial: "bg-amber-500/15 text-amber-700 border-amber-300 dark:text-amber-300 dark:border-amber-600",
+};
+
+// A helper to generate instances of a timetable entry across weeks
+function generateEventsForEntry(entry: TimetableEntry, baseDate: Date, weeksBefore: number, weeksAfter: number): CalendarEvent[] {
+    const events: CalendarEvent[] = [];
+    const baseWeekStart = startOfWeek(baseDate, { weekStartsOn: 0 }); // Sunday start
+
+    let targetDayIndex = entry.day_of_week;
+    if (targetDayIndex === 7) targetDayIndex = 0;
+
+    for (let i = -weeksBefore; i <= weeksAfter; i++) {
+        const weekStart = addWeeks(baseWeekStart, i);
+        const eventDate = setDay(weekStart, targetDayIndex, { weekStartsOn: 0 });
+
+        const startTimeStr = entry.start_time.substring(0, 5);
+        const endTimeStr = entry.end_time.substring(0, 5);
+
+        const start = parse(startTimeStr, "HH:mm", eventDate);
+        const end = parse(endTimeStr, "HH:mm", eventDate);
+
+        events.push({
+            id: `${entry.id}-${eventDate.toISOString()}`,
+            title: entry.course_name,
+            start,
+            end,
+            color: SUBJECT_COLORS[entry.subject_type] ?? SUBJECT_COLORS.classroom,
+            extendedProps: {
+                description: `${entry.location} • ${entry.faculty_name} • ${entry.subject_type_display}`,
+                entry,
+            },
+        });
+    }
+
+    return events;
+}
 
 export default function AdminTimetablePage() {
     const [entries, setEntries] = useState<TimetableEntry[]>([]);
+    const [semesters, setSemesters] = useState<Semester[]>([]);
+    const [semesterFilter, setSemesterFilter] = useState<string>("all");
+    const [batchFilter, setBatchFilter] = useState<string>("");
+    const [subjectTypeFilter, setSubjectTypeFilter] = useState<string>("all");
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        async function fetch() {
+        async function fetchInitialData() {
             try {
-                const { data } = await timetableService.list();
-                setEntries(data.results ?? []);
-            } catch { toast.error("Failed to load timetable"); }
+                const [timetableRes, semestersRes] = await Promise.all([
+                    timetableService.list(),
+                    semestersService.list()
+                ]);
+                setEntries(timetableRes.data.results ?? []);
+                setSemesters(semestersRes.data.results ?? []);
+            } catch { toast.error("Failed to load initial data"); }
             finally { setLoading(false); }
         }
-        fetch();
+        fetchInitialData();
     }, []);
+
+    // Unique batches from loaded entries
+    const batches = useMemo(() => {
+        const set = new Set(entries.map((e) => e.batch).filter(Boolean));
+        return Array.from(set).sort();
+    }, [entries]);
+
+    // Effect to refetch timetable when filters change
+    useEffect(() => {
+        if (loading) return;
+        async function fetchFiltered() {
+            try {
+                const params: Record<string, string> = {};
+                if (semesterFilter !== "all") params.semester = semesterFilter;
+                if (batchFilter) params.batch = batchFilter;
+                if (subjectTypeFilter !== "all") params.subject_type = subjectTypeFilter;
+
+                const { data } = await timetableService.list(params);
+                setEntries(data.results ?? []);
+            } catch { toast.error("Failed to apply filters"); }
+        }
+
+        const timeoutId = setTimeout(() => {
+            fetchFiltered();
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [semesterFilter, batchFilter, subjectTypeFilter]);
+
+    // Generate event instances for a 20-week window (-10 to +10 weeks around today)
+    const calendarEvents = useMemo(() => {
+        const today = new Date();
+        const allEvents: CalendarEvent[] = [];
+        entries.forEach(entry => {
+            const entryEvents = generateEventsForEntry(entry, today, 10, 10);
+            allEvents.push(...entryEvents);
+        });
+        return allEvents;
+    }, [entries]);
 
     if (loading) {
         return (
-            <div className="space-y-6">
-                <Skeleton className="h-8 w-48" />
-                <Skeleton className="h-[500px] w-full" style={{ borderRadius: "var(--radius-lg)" }} />
+            <div className="space-y-6 h-[800px] flex flex-col">
+                <div>
+                    <Skeleton className="h-8 w-64 mb-2" />
+                    <Skeleton className="h-4 w-96" />
+                </div>
+                <Skeleton className="flex-1 w-full rounded-lg" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight">Timetable Management</h1>
-                <p className="text-muted-foreground text-sm">View and manage class schedules</p>
-            </div>
-            <Card style={{ boxShadow: "var(--shadow-sm)", borderRadius: "var(--radius-lg)" }}>
-                <CardContent className="p-0 overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="border-b" style={{ borderColor: "var(--border)" }}>
-                                <th className="p-3 text-left font-medium text-muted-foreground w-20">Time</th>
-                                {DAYS.slice(1).map((d) => (
-                                    <th key={d} className="p-3 text-left font-medium text-muted-foreground">{d}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {TIME_SLOTS.map((slot) => (
-                                <tr key={slot} className="border-b last:border-b-0" style={{ borderColor: "var(--border)" }}>
-                                    <td className="p-3 font-mono text-xs text-muted-foreground">{slot}</td>
-                                    {DAYS.slice(1).map((_, dayIdx) => {
-                                        const dayEntries = entries.filter(
-                                            (e) => e.day_of_week === dayIdx + 1 && e.start_time?.startsWith(slot)
-                                        );
-                                        return (
-                                            <td key={dayIdx} className="p-1">
-                                                {dayEntries.map((entry) => (
-                                                    <div
-                                                        key={entry.id}
-                                                        className="p-2 rounded-md text-xs"
-                                                        style={{
-                                                            background: "var(--accent)",
-                                                            borderRadius: "var(--radius)",
-                                                            borderLeft: "3px solid var(--primary)",
-                                                        }}
-                                                    >
-                                                        <p className="font-medium truncate">{entry.course_name}</p>
-                                                        <p className="text-muted-foreground">{entry.room_name}</p>
-                                                        <p className="text-muted-foreground">{entry.faculty_name}</p>
-                                                    </div>
-                                                ))}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
+        <div className="flex flex-col h-[calc(100vh-8rem)] min-h-[700px] space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Timetable Management</h1>
+                    <p className="text-muted-foreground text-sm">View and manage class schedules across the semester.</p>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                    <Select value={semesterFilter} onValueChange={setSemesterFilter}>
+                        <SelectTrigger className="w-[180px] h-9">
+                            <SelectValue placeholder="All Semesters" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Semesters</SelectItem>
+                            {semesters.map(sem => (
+                                <SelectItem key={sem.id} value={sem.id}>{sem.name}</SelectItem>
                             ))}
-                        </tbody>
-                    </table>
-                </CardContent>
-            </Card>
+                        </SelectContent>
+                    </Select>
+                    <Select value={batchFilter || "all"} onValueChange={(v) => setBatchFilter(v === "all" ? "" : v)}>
+                        <SelectTrigger className="w-[150px] h-9">
+                            <SelectValue placeholder="All Batches" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Batches</SelectItem>
+                            {batches.map(b => (
+                                <SelectItem key={b} value={b}>{b}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={subjectTypeFilter} onValueChange={setSubjectTypeFilter}>
+                        <SelectTrigger className="w-[160px] h-9">
+                            <SelectValue placeholder="All Types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Types</SelectItem>
+                            <SelectItem value="classroom">Classroom</SelectItem>
+                            <SelectItem value="lab">Laboratory</SelectItem>
+                            <SelectItem value="tutorial">Tutorial</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm bg-blue-500/30 border border-blue-300" /> Classroom</span>
+                <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm bg-emerald-500/30 border border-emerald-300" /> Lab</span>
+                <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm bg-amber-500/30 border border-amber-300" /> Tutorial</span>
+            </div>
+
+            <div className="flex-1 min-h-0 bg-card rounded-lg border border-border p-4 shadow-sm">
+                <EventCalendar
+                    events={calendarEvents}
+                    onEventClick={(event) => toast.info(`Clicked: ${event.title}`)}
+                    onAddEvent={() => toast.info("Add event functionality coming soon")}
+                />
+            </div>
         </div>
     );
 }
