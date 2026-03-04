@@ -13,6 +13,8 @@ export interface User {
     profile_picture: string | null;
     phone: string | null;
     is_active: boolean;
+    is_deleted?: boolean;
+    deleted_at?: string | null;
     failed_login_attempts: number;
     last_login: string | null;
     created_at: string;
@@ -70,6 +72,7 @@ export interface Program {
     department: string;
     department_name: string;
     duration_years: number;
+    credit_limit?: number;
     degree_type: "UG" | "PG" | "PhD" | "Diploma";
     is_active: boolean;
 }
@@ -92,6 +95,20 @@ export interface Course {
     credits: number;
     description: string;
     is_active: boolean;
+    is_deleted?: boolean;
+    deleted_at?: string | null;
+}
+
+export interface CoursePrerequisite {
+    id: string;
+    course: string;
+    course_name?: string;
+    course_code?: string;
+    prerequisite: string;
+    prerequisite_name?: string;
+    prerequisite_code?: string;
+    is_corequisite: boolean;
+    created_at: string;
 }
 
 export interface CourseOffering {
@@ -130,10 +147,41 @@ export interface Assignment {
     max_marks: number;
     assignment_type: "assignment" | "quiz" | "exam" | "project";
     attachments: Record<string, unknown>[];
+    grace_period_days?: number;
+    penalty_per_day?: number;
+    max_penalty_percentage?: number;
     is_published: boolean;
     submission_count: number;
+    is_deleted?: boolean;
+    deleted_at?: string | null;
     created_at: string;
     updated_at: string;
+}
+
+export interface GradingRubric {
+    id: string;
+    assignment: string;
+    title: string;
+    description: string | null;
+    total_points: number;
+    criteria?: RubricCriteria[];
+}
+
+export interface RubricCriteria {
+    id: string;
+    rubric: string;
+    title: string;
+    description: string | null;
+    max_points: number;
+    order: number;
+}
+
+export interface AssignmentGroup {
+    id: string;
+    assignment: string;
+    name: string;
+    members: string[];
+    created_at: string;
 }
 
 export interface Submission {
@@ -149,6 +197,8 @@ export interface Submission {
     feedback: string | null;
     graded_by: string | null;
     graded_at: string | null;
+    is_final?: boolean;
+    version?: number;
     status: "submitted" | "graded" | "returned";
 }
 
@@ -167,6 +217,8 @@ export interface Content {
     uploaded_by_name: string;
     visibility: "public" | "department" | "course" | "private";
     is_published: boolean;
+    is_deleted?: boolean;
+    deleted_at?: string | null;
     tags: ContentTag[];
     created_at: string;
     updated_at: string;
@@ -233,6 +285,7 @@ export interface Announcement {
     is_urgent: boolean;
     publish_at: string | null;
     expires_at: string | null;
+    attachments?: Record<string, unknown>[];
     is_published: boolean;
     created_at: string;
 }
@@ -245,6 +298,8 @@ export interface Message {
     receiver_name: string;
     subject: string;
     body: string;
+    file?: string | null;
+    file_name?: string | null;
     is_read: boolean;
     read_at: string | null;
     created_at: string;
@@ -388,4 +443,46 @@ export interface PaginatedResponse<T> {
 export interface Tokens {
     access: string;
     refresh: string;
+}
+
+export interface Grade {
+    id: string;
+    student: string;
+    student_name: string;
+    course_offering: string;
+    course_name: string;
+    semester?: string;
+    semester_name?: string;
+    grade_letter: string;
+    grade_points: number;
+    credits_earned: number;
+    is_pass: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface RoomBooking {
+    id: string;
+    room: string;
+    room_name?: string;
+    booked_by: string;
+    booked_by_name?: string;
+    purpose: string;
+    start_time: string;
+    end_time: string;
+    status: "pending" | "approved" | "rejected";
+    approved_by?: string | null;
+    created_at: string;
+}
+
+export interface SubstituteFaculty {
+    id: string;
+    timetable_entry: string;
+    original_faculty: string;
+    substitute_faculty: string;
+    substitute_faculty_name?: string;
+    date: string;
+    reason: string;
+    status: "pending" | "approved" | "rejected";
+    created_at: string;
 }

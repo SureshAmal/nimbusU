@@ -27,6 +27,13 @@ import type {
     WebhookEndpoint,
     WebhookDelivery,
     TimetableSwapRequest,
+    Grade,
+    RoomBooking,
+    SubstituteFaculty,
+    CoursePrerequisite,
+    GradingRubric,
+    RubricCriteria,
+    AssignmentGroup,
 } from "@/lib/types";
 
 /* ─── Users ───────────────────────────────────────────────────────── */
@@ -40,6 +47,8 @@ export const usersService = {
     update: (id: string, data: Partial<User>) =>
         api.patch<User>(`/users/${id}/`, data),
     delete: (id: string) => api.delete(`/users/${id}/`),
+    bulkCreate: (data: any) =>
+        api.post<{ status: string; message: string }>("/users/bulk-create/", data),
     resetPassword: (id: string, new_password: string) =>
         api.post(`/users/${id}/reset-password/`, { new_password }),
     me: () => api.get<User>("/users/me/"),
@@ -130,7 +139,29 @@ export const enrollmentsService = {
         api.post<Enrollment>("/academics/enrollments/", data),
     mine: () =>
         api.get<PaginatedResponse<Enrollment>>("/academics/enrollments/me/"),
+    bulkCreate: (data: any) =>
+        api.post<{ status: string; message: string }>("/academics/enrollments/bulk-create/", data),
     delete: (id: string) => api.delete(`/academics/enrollments/${id}/`),
+};
+
+export const prerequisitesService = {
+    list: (params?: Record<string, string>) =>
+        api.get<PaginatedResponse<CoursePrerequisite>>("/academics/prerequisites/", { params }),
+    delete: (id: string) => api.delete(`/academics/prerequisites/${id}/`),
+};
+
+export const gradesService = {
+    list: (params?: Record<string, string>) =>
+        api.get<PaginatedResponse<Grade>>("/academics/grades/", { params }),
+    create: (data: Partial<Grade>) =>
+        api.post<Grade>("/academics/grades/", data),
+    update: (id: string, data: Partial<Grade>) =>
+        api.patch<Grade>(`/academics/grades/${id}/`, data),
+    delete: (id: string) => api.delete(`/academics/grades/${id}/`),
+    me: () => api.get<Grade[]>("/academics/grades/me/"),
+    gpa: (params?: Record<string, string>) =>
+        api.get<{ status: string; data: any }>("/academics/grades/gpa/", { params }),
+    export: () => api.get<Blob>("/academics/grades/export/", { responseType: "blob" }),
 };
 
 /* ─── Assignments ─────────────────────────────────────────────────── */
@@ -160,6 +191,39 @@ export const assignmentsService = {
         api.patch(`/assignments/${assignmentId}/submissions/${submissionId}/grade/`, data),
     exportGrades: (offeringId: string) =>
         api.get(`/assignments/export/${offeringId}/`, { responseType: "blob" }),
+};
+
+export const rubricsService = {
+    list: (params?: Record<string, string>) =>
+        api.get<PaginatedResponse<GradingRubric>>("/assignments/rubrics/", { params }),
+    get: (id: string) => api.get<GradingRubric>(`/assignments/rubrics/${id}/`),
+    create: (data: Partial<GradingRubric>) =>
+        api.post<GradingRubric>("/assignments/rubrics/", data),
+    update: (id: string, data: Partial<GradingRubric>) =>
+        api.patch<GradingRubric>(`/assignments/rubrics/${id}/`, data),
+    delete: (id: string) => api.delete(`/assignments/rubrics/${id}/`),
+};
+
+export const rubricCriteriaService = {
+    list: (params?: Record<string, string>) =>
+        api.get<PaginatedResponse<RubricCriteria>>("/assignments/rubric-criteria/", { params }),
+    get: (id: string) => api.get<RubricCriteria>(`/assignments/rubric-criteria/${id}/`),
+    create: (data: Partial<RubricCriteria>) =>
+        api.post<RubricCriteria>("/assignments/rubric-criteria/", data),
+    update: (id: string, data: Partial<RubricCriteria>) =>
+        api.patch<RubricCriteria>(`/assignments/rubric-criteria/${id}/`, data),
+    delete: (id: string) => api.delete(`/assignments/rubric-criteria/${id}/`),
+};
+
+export const assignmentGroupsService = {
+    list: (params?: Record<string, string>) =>
+        api.get<PaginatedResponse<AssignmentGroup>>("/assignments/groups/", { params }),
+    get: (id: string) => api.get<AssignmentGroup>(`/assignments/groups/${id}/`),
+    create: (data: Partial<AssignmentGroup>) =>
+        api.post<AssignmentGroup>("/assignments/groups/", data),
+    update: (id: string, data: Partial<AssignmentGroup>) =>
+        api.patch<AssignmentGroup>(`/assignments/groups/${id}/`, data),
+    delete: (id: string) => api.delete(`/assignments/groups/${id}/`),
 };
 
 /* ─── Content ─────────────────────────────────────────────────────── */
@@ -231,6 +295,7 @@ export const attendanceService = {
         date: string;
         records: Array<{ student_id: string; status: string; remarks?: string }>;
     }) => api.post("/attendance/mark/", data),
+    export: () => api.get<Blob>("/attendance/export/", { responseType: "blob" }),
     edit: (id: string, data: Partial<AttendanceRecord>) =>
         api.patch(`/attendance/${id}/`, data),
     byCourse: (offeringId: string) =>
@@ -239,6 +304,36 @@ export const attendanceService = {
         api.get<PaginatedResponse<AttendanceRecord>>("/attendance/me/"),
     myCourse: (offeringId: string) =>
         api.get<PaginatedResponse<AttendanceRecord>>(`/attendance/me/${offeringId}/`),
+    summary: (params?: Record<string, string>) =>
+        api.get("/attendance/summary/", { params }),
+    lowAlert: () =>
+        api.get("/attendance/low-alert/"),
+    report: (offeringId: string) =>
+        api.get(`/attendance/report/${offeringId}/`),
+};
+
+export const roomBookingsService = {
+    list: (params?: Record<string, string>) =>
+        api.get<PaginatedResponse<RoomBooking>>("/room-bookings/", { params }),
+    get: (id: string) => api.get<RoomBooking>(`/room-bookings/${id}/`),
+    create: (data: Partial<RoomBooking>) =>
+        api.post<RoomBooking>("/room-bookings/", data),
+    update: (id: string, data: Partial<RoomBooking>) =>
+        api.patch<RoomBooking>(`/room-bookings/${id}/`, data),
+    delete: (id: string) => api.delete(`/room-bookings/${id}/`),
+    approve: (id: string, data: { status: "approved" | "rejected" }) =>
+        api.post(`/room-bookings/${id}/approve/`, data),
+};
+
+export const substituteFacultyService = {
+    list: (params?: Record<string, string>) =>
+        api.get<PaginatedResponse<SubstituteFaculty>>("/substitute-faculty/", { params }),
+    get: (id: string) => api.get<SubstituteFaculty>(`/substitute-faculty/${id}/`),
+    create: (data: Partial<SubstituteFaculty>) =>
+        api.post<SubstituteFaculty>("/substitute-faculty/", data),
+    update: (id: string, data: Partial<SubstituteFaculty>) =>
+        api.patch<SubstituteFaculty>(`/substitute-faculty/${id}/`, data),
+    delete: (id: string) => api.delete(`/substitute-faculty/${id}/`),
 };
 
 /* ─── Communications ──────────────────────────────────────────────── */
