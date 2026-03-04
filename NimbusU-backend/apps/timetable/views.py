@@ -1,6 +1,8 @@
 """Views for the timetable app."""
 
+import csv
 from django.db.models import Q
+from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema, extend_schema_view, inline_serializer
 from rest_framework import generics, permissions, serializers, status, filters
 from rest_framework.response import Response
@@ -9,7 +11,10 @@ from rest_framework.views import APIView
 from apps.accounts.permissions import IsAdmin, IsAdminOrFaculty, IsFaculty
 from apps.academics.models import Enrollment
 
-from .models import AttendanceRecord, Room, TimetableEntry, TimetableSwapRequest, ClassCancellation
+from .models import (
+    AttendanceRecord, Room, TimetableEntry, TimetableSwapRequest, 
+    ClassCancellation, RoomBooking, SubstituteFaculty
+)
 from .serializers import (
     AttendanceRecordSerializer,
     BulkAttendanceSerializer,
@@ -19,6 +24,8 @@ from .serializers import (
     TimetableSwapCreateSerializer,
     ClassCancellationSerializer,
     ClassCancellationCreateSerializer,
+    RoomBookingSerializer,
+    SubstituteFacultySerializer,
 )
 
 
@@ -477,3 +484,336 @@ class ClassCancellationListCreateView(APIView):
             ClassCancellationSerializer(cancellation).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+# ─── Attendance Analytics ──────────────────────────────────────────────
+
+
+class AttendanceSummaryView(APIView):
+    """GET /api/v1/attendance/summary/ — per-course attendance % for a student.
+
+    Query params:
+      ?student_id=...  (admin/faculty can query any student)
+      Default: current logged-in student.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        parameters=[
+            {"name": "student_id", "in": "query", "type": "string", "required": False},
+        ],
+        responses={200: inline_serializer("AttendanceSummaryResponse", {
+            "status": serializers.CharField(),
+            "data": serializers.ListField(),
+        })},
+        tags=["Attendance Analytics"],
+    )
+    def get(self, request):
+        student_id = request.query_params.get("student_id")
+        user = request.user
+
+        if student_id and user.role in ("admin", "faculty", "dean", "head"):
+            target_user_id = student_id
+        elif user.role == "student":
+            target_user_id = str(user.id)
+        else:
+            return Response(
+                {"detail": "student_id is required for non-student users."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get all enrollments for this student
+        enrollments = Enrollment.objects.filter(
+            student_id=target_user_id, status="active"
+        ).select_related("course_offering__course")
+
+        summary = []
+        total_classes = 0
+        total_present = 0
+
+        for enr in enrollments:
+            offering = enr.course_offering
+            timetable_entries = TimetableEntry.objects.filter(
+                course_offering=offering, is_active=True
+            )
+            entry_ids = timetable_entries.values_list("id", flat=True)
+
+            records = AttendanceRecord.objects.filter(
+                timetable_entry_id__in=entry_ids,
+                student_id=target_user_id,
+            )
+            total = records.count()
+            present = records.filter(status__in=["present", "late"]).count()
+            pct = round(present / total * 100, 1) if total > 0 else 0
+
+            total_classes += total
+            total_present += present
+
+            summary.append({
+                "course_offering_id": str(offering.id),
+                "course_name": offering.course.name,
+                "course_code": offering.course.code,
+                "total_classes": total,
+                "classes_attended": present,
+                "percentage": pct,
+                "below_threshold": pct < 75,
+            })
+
+        overall_pct = round(total_present / total_classes * 100, 1) if total_classes > 0 else 0
+
+        return Response({
+            "status": "success",
+            "data": {
+                "student_id": target_user_id,
+                "overall_percentage": overall_pct,
+                "overall_below_threshold": overall_pct < 75,
+                "courses": summary,
+            },
+        })
+
+
+class LowAttendanceAlertView(APIView):
+    """GET /api/v1/attendance/low-alert/ — students below attendance threshold.
+
+    Query params:
+      ?threshold=75  (default 75%)
+      ?offering_id=... (optional, filter by course)
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrFaculty]
+
+    @extend_schema(
+        parameters=[
+            {"name": "threshold", "in": "query", "type": "float", "required": False},
+            {"name": "offering_id", "in": "query", "type": "string", "required": False},
+        ],
+        responses={200: inline_serializer("LowAlertResponse", {
+            "status": serializers.CharField(),
+            "data": serializers.ListField(),
+        })},
+        tags=["Attendance Analytics"],
+    )
+    def get(self, request):
+        threshold = float(request.query_params.get("threshold", 75))
+        offering_id = request.query_params.get("offering_id")
+
+        # Build enrollment queryset
+        enrollments_qs = Enrollment.objects.filter(status="active").select_related(
+            "student", "course_offering__course"
+        )
+        if offering_id:
+            enrollments_qs = enrollments_qs.filter(course_offering_id=offering_id)
+        elif request.user.role == "faculty":
+            enrollments_qs = enrollments_qs.filter(
+                course_offering__faculty=request.user
+            )
+
+        alerts = []
+        for enr in enrollments_qs:
+            entry_ids = TimetableEntry.objects.filter(
+                course_offering=enr.course_offering, is_active=True
+            ).values_list("id", flat=True)
+
+            records = AttendanceRecord.objects.filter(
+                timetable_entry_id__in=entry_ids,
+                student=enr.student,
+            )
+            total = records.count()
+            if total == 0:
+                continue
+            present = records.filter(status__in=["present", "late"]).count()
+            pct = round(present / total * 100, 1)
+
+            if pct < threshold:
+                alerts.append({
+                    "student_id": str(enr.student.id),
+                    "student_name": enr.student.full_name,
+                    "course_name": enr.course_offering.course.name,
+                    "course_code": enr.course_offering.course.code,
+                    "percentage": pct,
+                    "total_classes": total,
+                    "classes_attended": present,
+                })
+
+        return Response({
+            "status": "success",
+            "data": {"threshold": threshold, "count": len(alerts), "alerts": alerts},
+        })
+
+
+class CourseAttendanceReportView(APIView):
+    """GET /api/v1/attendance/report/{offering_id}/ — per-student breakdown for faculty."""
+
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrFaculty]
+
+    @extend_schema(
+        responses={200: inline_serializer("CourseReportResponse", {
+            "status": serializers.CharField(),
+            "data": serializers.DictField(),
+        })},
+        tags=["Attendance Analytics"],
+    )
+    def get(self, request, offering_id):
+        from apps.academics.models import CourseOffering
+
+        try:
+            offering = CourseOffering.objects.select_related("course").get(pk=offering_id)
+        except CourseOffering.DoesNotExist:
+            return Response(
+                {"detail": "Course offering not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        entry_ids = TimetableEntry.objects.filter(
+            course_offering=offering, is_active=True
+        ).values_list("id", flat=True)
+
+        students = Enrollment.objects.filter(
+            course_offering=offering, status="active"
+        ).select_related("student")
+
+        report = []
+        for enr in students:
+            records = AttendanceRecord.objects.filter(
+                timetable_entry_id__in=entry_ids,
+                student=enr.student,
+            )
+            total = records.count()
+            present = records.filter(status__in=["present", "late"]).count()
+            absent = records.filter(status="absent").count()
+            late = records.filter(status="late").count()
+            excused = records.filter(status="excused").count()
+            pct = round(present / total * 100, 1) if total > 0 else 0
+
+            report.append({
+                "student_id": str(enr.student.id),
+                "student_name": enr.student.full_name,
+                "total_classes": total,
+                "present": present,
+                "absent": absent,
+                "late": late,
+                "excused": excused,
+                "percentage": pct,
+                "below_threshold": pct < 75,
+            })
+
+        report.sort(key=lambda x: x["percentage"])
+
+        return Response({
+            "status": "success",
+            "data": {
+                "course_name": offering.course.name,
+                "course_code": offering.course.code,
+                "total_students": len(report),
+                "students_below_threshold": sum(1 for r in report if r["below_threshold"]),
+                "report": report,
+            },
+        })
+
+
+# ─── Room Bookings ──────────────────────────────────────────────────────
+
+
+class RoomBookingListCreateView(generics.ListCreateAPIView):
+    serializer_class = RoomBookingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ["room", "status", "date"]
+
+    def get_queryset(self):
+        return RoomBooking.objects.select_related("room", "booked_by", "approved_by").all()
+
+    def perform_create(self, serializer):
+        serializer.save(booked_by=self.request.user)
+
+
+class RoomBookingDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = RoomBookingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return RoomBooking.objects.select_related("room", "booked_by", "approved_by").all()
+
+
+class RoomBookingApproveView(APIView):
+    """PATCH /api/v1/timetable/room-bookings/{id}/approve/"""
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
+    @extend_schema(
+        request=inline_serializer(
+            name="RoomBookingApproval",
+            fields={"status": serializers.ChoiceField(choices=["approved", "rejected"])},
+        ),
+        responses={200: RoomBookingSerializer},
+    )
+    def patch(self, request, pk):
+        try:
+            booking = RoomBooking.objects.get(pk=pk)
+            status_val = request.data.get("status")
+            if status_val not in ["approved", "rejected"]:
+                return Response({"error": "Invalid status."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            booking.status = status_val
+            booking.approved_by = request.user
+            booking.save()
+            return Response(RoomBookingSerializer(booking).data)
+        except RoomBooking.DoesNotExist:
+            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+# ─── Substitute Faculty ──────────────────────────────────────────────────
+
+
+class SubstituteFacultyListCreateView(generics.ListCreateAPIView):
+    serializer_class = SubstituteFacultySerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrFaculty]
+    filterset_fields = ["timetable_entry", "substitute", "date"]
+
+    def get_queryset(self):
+        return SubstituteFaculty.objects.select_related("timetable_entry", "substitute", "assigned_by").all()
+
+    def perform_create(self, serializer):
+        serializer.save(assigned_by=self.request.user)
+
+
+class SubstituteFacultyDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = SubstituteFacultySerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrFaculty]
+
+    def get_queryset(self):
+        return SubstituteFaculty.objects.select_related("timetable_entry", "substitute", "assigned_by").all()
+
+
+class ExportAttendanceView(APIView):
+    """GET /api/v1/timetable/attendance/export/ — Export attendance as CSV."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        responses={200: serializers.CharField(help_text="CSV file content")},
+        tags=["Timetable"],
+    )
+    def get(self, request):
+        if request.user.role == "student":
+            records = AttendanceRecord.objects.filter(student=request.user).select_related("timetable_entry__course_offering__course")
+        elif request.user.role in ("faculty", "dean", "head", "admin"):
+            records = AttendanceRecord.objects.select_related("student", "timetable_entry__course_offering__course").all()
+        else:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+            
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="attendance_export.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(["Student", "Course", "Date", "Status", "Remarks"])
+
+        for record in records:
+            writer.writerow([
+                record.student.full_name,
+                record.timetable_entry.course_offering.course.name,
+                record.date,
+                record.status,
+                record.remarks or "",
+            ])
+
+        return response

@@ -216,6 +216,37 @@ class AvatarUploadSerializer(serializers.Serializer):
     avatar = serializers.ImageField()
 
 
+class UserBulkCreateSerializer(serializers.Serializer):
+    """Serializer for bulk creating users via JSON."""
+    
+    users = UserCreateSerializer(many=True)
+
+    def create(self, validated_data):
+        users_data = validated_data.pop("users")
+        created_users = []
+        
+        # Using a transaction to ensure all or nothing
+        from django.db import transaction
+        with transaction.atomic():
+            for user_data in users_data:
+                student_data = user_data.pop("student_profile", None)
+                faculty_data = user_data.pop("faculty_profile", None)
+                password = user_data.pop("password")
+                
+                user = User(**user_data)
+                user.set_password(password)
+                user.save()
+                
+                if user.role == "student" and student_data:
+                    StudentProfile.objects.create(user=user, **student_data)
+                elif user.role in ("faculty", "dean", "head") and faculty_data:
+                    FacultyProfile.objects.create(user=user, **faculty_data)
+                    
+                created_users.append(user)
+                
+        return created_users
+
+
 class AuditLogSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source="user.email", read_only=True)
 

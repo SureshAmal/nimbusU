@@ -22,6 +22,7 @@ from .serializers import (
     UserCreateSerializer,
     UserDetailSerializer,
     UserListSerializer,
+    UserBulkCreateSerializer,
 )
 
 User = get_user_model()
@@ -141,6 +142,35 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_destroy(self, instance):
         instance.is_active = False
         instance.save()
+
+
+class UserBulkCreateView(generics.CreateAPIView):
+    """POST /api/v1/users/bulk-create/ — Bulk create multiple users via JSON array."""
+    
+    serializer_class = UserBulkCreateSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
+    @extend_schema(
+        request=UserBulkCreateSerializer,
+        responses={201: UserListSerializer(many=True)},
+        tags=["Users"],
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        users = serializer.save()
+        # You could also return `users` to customize Response, but DRF handles default
+        self._created_users = users
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(
+            {"status": "success", "message": f"{len(self._created_users)} users created."}, 
+            status=status.HTTP_201_CREATED
+        )
 
 
 class MeView(generics.RetrieveUpdateAPIView):

@@ -54,6 +54,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     phone = models.CharField(max_length=20, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     is_staff = models.BooleanField(default=False)
     failed_login_attempts = models.IntegerField(default=0)
     locked_until = models.DateTimeField(null=True, blank=True)
@@ -76,6 +78,16 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+
+    def delete(self, *args, **kwargs):
+        from django.utils import timezone
+        self.is_active = False
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.save(update_fields=["is_active", "is_deleted", "deleted_at"])
+
+    def hard_delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
 
 
 class StudentProfile(models.Model):

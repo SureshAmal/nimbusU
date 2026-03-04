@@ -3,7 +3,7 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from .models import Assignment, Submission
+from .models import Assignment, Submission, GradingRubric, RubricCriteria, AssignmentGroup
 
 
 class AssignmentSerializer(serializers.ModelSerializer):
@@ -55,3 +55,45 @@ class GradeSubmissionSerializer(serializers.Serializer):
     marks_obtained = serializers.DecimalField(max_digits=6, decimal_places=2)
     grade = serializers.CharField(max_length=5, required=False)
     feedback = serializers.CharField(required=False, allow_blank=True)
+
+
+class RubricCriteriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RubricCriteria
+        fields = ["id", "rubric", "name", "description", "max_marks", "order"]
+        read_only_fields = ["id", "rubric"]
+
+
+class GradingRubricSerializer(serializers.ModelSerializer):
+    criteria = RubricCriteriaSerializer(many=True, read_only=True)
+    created_by_name = serializers.CharField(
+        source="created_by.full_name", read_only=True
+    )
+
+    class Meta:
+        model = GradingRubric
+        fields = [
+            "id", "assignment", "created_by", "created_by_name",
+            "criteria", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at", "created_by"]
+
+
+class AssignmentGroupSerializer(serializers.ModelSerializer):
+    member_names = serializers.SerializerMethodField()
+    submission_id = serializers.UUIDField(
+        source="submission.id", read_only=True, allow_null=True
+    )
+
+    class Meta:
+        model = AssignmentGroup
+        fields = [
+            "id", "assignment", "name", "members", "member_names",
+            "submission", "submission_id", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at", "submission"]
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_member_names(self, obj) -> list[str]:
+        return [user.full_name for user in obj.members.all()]
+

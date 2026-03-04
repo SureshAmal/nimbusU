@@ -2,7 +2,10 @@
 
 from rest_framework import serializers
 
-from .models import AttendanceRecord, Room, TimetableEntry, TimetableSwapRequest, ClassCancellation
+from .models import (
+    AttendanceRecord, Room, TimetableEntry, TimetableSwapRequest, 
+    ClassCancellation, RoomBooking, SubstituteFaculty
+)
 
 
 class RoomSerializer(serializers.ModelSerializer):
@@ -39,7 +42,7 @@ class TimetableEntrySerializer(serializers.ModelSerializer):
             "faculty_name", "batch", "subject_type", "subject_type_display",
             "location", "day_of_week", "day_name", "start_time", "end_time",
             "semester", "semester_name", "department_name", "program_name",
-            "is_active",
+            "is_active", "is_oneoff", "oneoff_date",
         ]
         read_only_fields = ["id"]
 
@@ -122,9 +125,10 @@ class ClassCancellationSerializer(serializers.ModelSerializer):
             "id", "timetable_entry", "course_name", "original_date",
             "action", "action_display", "reason",
             "new_date", "new_start_time", "new_end_time", "new_location",
-            "cancelled_by", "faculty_name", "created_at",
+            "cancelled_by", "faculty_name", "is_makeup", "makeup_entry", 
+            "created_at",
         ]
-        read_only_fields = ["id", "cancelled_by", "created_at"]
+        read_only_fields = ["id", "cancelled_by", "created_at", "makeup_entry"]
 
 
 class ClassCancellationCreateSerializer(serializers.Serializer):
@@ -139,3 +143,35 @@ class ClassCancellationCreateSerializer(serializers.Serializer):
     new_start_time = serializers.TimeField(required=False)
     new_end_time = serializers.TimeField(required=False)
     new_location = serializers.CharField(required=False, default="", allow_blank=True)
+    is_makeup = serializers.BooleanField(required=False, default=False)
+
+
+class RoomBookingSerializer(serializers.ModelSerializer):
+    room_name = serializers.CharField(source="room.name", read_only=True)
+    building = serializers.CharField(source="room.building", read_only=True)
+    booked_by_name = serializers.CharField(source="booked_by.full_name", read_only=True)
+    approved_by_name = serializers.CharField(source="approved_by.full_name", read_only=True)
+
+    class Meta:
+        model = RoomBooking
+        fields = [
+            "id", "room", "room_name", "building", "booked_by", "booked_by_name",
+            "date", "start_time", "end_time", "purpose", "status",
+            "approved_by", "approved_by_name", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "booked_by", "created_at", "updated_at", "approved_by", "status"]
+
+
+class SubstituteFacultySerializer(serializers.ModelSerializer):
+    substitute_name = serializers.CharField(source="substitute.full_name", read_only=True)
+    assigned_by_name = serializers.CharField(source="assigned_by.full_name", read_only=True)
+    timetable_entry_detail = TimetableEntrySerializer(source="timetable_entry", read_only=True)
+
+    class Meta:
+        model = SubstituteFaculty
+        fields = [
+            "id", "timetable_entry", "timetable_entry_detail",
+            "substitute", "substitute_name", "date", "reason",
+            "assigned_by", "assigned_by_name", "created_at",
+        ]
+        read_only_fields = ["id", "assigned_by", "created_at"]

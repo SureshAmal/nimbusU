@@ -1,9 +1,15 @@
 """Serializers for the academics app."""
 
+from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from .models import AcademicEvent, Course, CourseOffering, Department, Enrollment, Program, School, Semester
+User = get_user_model()
+
+from .models import (
+    AcademicEvent, Course, CourseOffering, CoursePrerequisite,
+    Department, Enrollment, Grade, Program, School, Semester,
+)
 
 
 class SchoolSerializer(serializers.ModelSerializer):
@@ -32,7 +38,7 @@ class ProgramSerializer(serializers.ModelSerializer):
         model = Program
         fields = [
             "id", "name", "code", "department", "department_name",
-            "duration_years", "degree_type", "is_active",
+            "duration_years", "degree_type", "credit_limit", "is_active",
         ]
         read_only_fields = ["id"]
 
@@ -91,6 +97,31 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "enrolled_at"]
 
 
+class EnrollmentBulkCreateSerializer(serializers.Serializer):
+    """Serializer for bulk creating enrollments from a JSON array."""
+    
+    course_offering = serializers.PrimaryKeyRelatedField(queryset=CourseOffering.objects.all())
+    students = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(role="student"), many=True)
+
+    def create(self, validated_data):
+        course_offering = validated_data["course_offering"]
+        students = validated_data["students"]
+        
+        enrollments = []
+        for student in students:
+            # Check if already enrolled to avoid integrity errors or duplicates
+            if not Enrollment.objects.filter(student=student, course_offering=course_offering).exists():
+                enrollments.append(
+                    Enrollment(student=student, course_offering=course_offering)
+                )
+                
+        # Bulk create for efficiency
+        if enrollments:
+            Enrollment.objects.bulk_create(enrollments)
+            
+        return enrollments
+
+
 class AcademicEventSerializer(serializers.ModelSerializer):
     semester_name = serializers.CharField(source="semester.name", read_only=True, default=None)
     department_name = serializers.CharField(source="department.name", read_only=True, default=None)
@@ -106,3 +137,41 @@ class AcademicEventSerializer(serializers.ModelSerializer):
             "created_by", "created_by_name", "created_at",
         ]
         read_only_fields = ["id", "created_by", "created_at"]
+
+
+class CoursePrerequisiteSerializer(serializers.ModelSerializer):
+    course_name = serializers.CharField(source="course.name", read_only=True)
+    course_code = serializers.CharField(source="course.code", read_only=True)
+    required_course_name = serializers.CharField(source="required_course.name", read_only=True)
+    required_course_code = serializers.CharField(source="required_course.code", read_only=True)
+    type_display = serializers.CharField(source="get_type_display", read_only=True)
+
+    class Meta:
+        model = CoursePrerequisite
+        fields = [
+            "id", "course", "course_name", "course_code",
+            "required_course", "required_course_name", "required_course_code",
+            "type", "type_display", "min_grade",
+        ]
+        read_only_fields = ["id"]
+
+
+class GradeSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source="student.full_name", read_only=True)
+    course_name = serializers.CharField(source="course_offering.course.name", read_only=True)
+    course_code = serializers.CharField(source="course_offering.course.code", read_only=True)
+    semester_name = serializers.CharField(source="course_offering.semester.name", read_only=True)
+    grade_points = serializers.FloatField(read_only=True)
+    is_pass = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Grade
+        fields = [
+            "id", "student", "student_name",
+            "course_offering", "course_name", "course_code", "semester_name",
+            "grade_letter", "grade_points", "credits_earned",
+            "is_pass", "remarks", "published_at",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+

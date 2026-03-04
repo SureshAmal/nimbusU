@@ -3,6 +3,8 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from apps.common.models import SoftDeleteModel
+
 
 class School(models.Model):
     """Academic school or faculty (e.g. Faculty of Engineering and Technology)."""
@@ -74,6 +76,9 @@ class Program(models.Model):
     )
     duration_years = models.IntegerField()
     degree_type = models.CharField(max_length=50, choices=DegreeType.choices)
+    credit_limit = models.IntegerField(
+        default=24, help_text="Max credits a student can take per semester",
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -102,7 +107,7 @@ class Semester(models.Model):
         return f"{self.name} ({self.academic_year})"
 
 
-class Course(models.Model):
+class Course(SoftDeleteModel):
     """A course offered by a department."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -232,3 +237,90 @@ class AcademicEvent(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.start_date} – {self.end_date})"
+
+
+class CoursePrerequisite(models.Model):
+    """Defines prerequisite or corequisite relationships between courses."""
+
+    class Type(models.TextChoices):
+        PREREQUISITE = "prerequisite", "Prerequisite"
+        COREQUISITE = "corequisite", "Co-requisite"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="prerequisites",
+        help_text="The course that has the prerequisite",
+    )
+    required_course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="is_prerequisite_for",
+        help_text="The course that must be completed first",
+    )
+    type = models.CharField(
+        max_length=20, choices=Type.choices, default=Type.PREREQUISITE,
+    )
+    min_grade = models.CharField(
+        max_length=5, blank=True, default="",
+        help_text="Minimum grade required (e.g. 'C'), blank = just pass",
+    )
+
+    class Meta:
+        db_table = "course_prerequisites"
+        unique_together = ["course", "required_course"]
+
+    def __str__(self):
+        return f"{self.required_course.code} → {self.course.code} ({self.get_type_display()})"
+
+
+class Grade(models.Model):
+    """Final grade for a student in a course offering — used for GPA/CGPA."""
+
+    class GradeLetter(models.TextChoices):
+        O = "O", "Outstanding (10)"
+        A_PLUS = "A+", "Excellent (9)"
+        A = "A", "Very Good (8)"
+        B_PLUS = "B+", "Good (7)"
+        B = "B", "Above Average (6)"
+        C = "C", "Average (5)"
+        D = "D", "Below Average (4)"
+        F = "F", "Fail (0)"
+        W = "W", "Withdrawn"
+        I = "I", "Incomplete"
+
+    GRADE_POINT_MAP = {
+        "O": 10, "A+": 9, "A": 8, "B+": 7, "B": 6,
+        "C": 5, "D": 4, "F": 0, "W": 0, "I": 0,
+    }
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="grades",
+    )
+    course_offering = models.ForeignKey(
+        CourseOffering, on_delete=models.CASCADE, related_name="grades",
+    )
+    grade_letter = models.CharField(max_length=5, choices=GradeLetter.choices)
+    credits_earned = models.IntegerField(
+        default=0, help_text="Credits earned (0 if failed/withdrawn)",
+    )
+    remarks = models.CharField(max_length=200, blank=True, default="")
+    published_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "grades"
+        unique_together = ["student", "course_offering"]
+        ordering = ["-course_offering__semester__start_date"]
+
+    @property
+    def grade_points(self):
+        return self.GRADE_POINT_MAP.get(self.grade_letter, 0)
+
+    @property
+    def is_pass(self):
+        return self.grade_letter not in ("F", "W", "I")
+
+    def __str__(self):
+        return f"{self.student} → {self.course_offering} = {self.grade_letter}"

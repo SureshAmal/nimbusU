@@ -28,10 +28,20 @@ urlpatterns = [
     path("academics/offerings/<uuid:pk>/", views.CourseOfferingDetailView.as_view(), name="offering-detail"),
     path("academics/offerings/<uuid:pk>/students/", views.CourseOfferingStudentsView.as_view(), name="offering-students"),
     # Enrollments
-    path("academics/enrollments/", views.EnrollmentCreateView.as_view(), name="enrollment-create"),
-    path("academics/enrollments/me/", views.MyEnrollmentsView.as_view(), name="my-enrollments"),
-    path("academics/enrollments/<uuid:pk>/", views.EnrollmentDeleteView.as_view(), name="enrollment-delete"),
+    path("enrollments/", views.EnrollmentCreateView.as_view(), name="enrollment-create"),
+    path("enrollments/bulk-create/", views.EnrollmentBulkCreateView.as_view(), name="enrollment-bulk-create"),
+    path("enrollments/me/", views.MyEnrollmentsView.as_view(), name="my-enrollments"),
+    path("enrollments/<uuid:pk>/", views.EnrollmentDeleteView.as_view(), name="enrollment-delete"),
     # Academic Calendar
     path("academics/calendar/", views.AcademicEventListCreateView.as_view(), name="calendar-list-create"),
     path("academics/calendar/<uuid:pk>/", views.AcademicEventDetailView.as_view(), name="calendar-detail"),
+    # Course Prerequisites
+    path("academics/prerequisites/", views.CoursePrerequisiteListCreateView.as_view(), name="prereq-list-create"),
+    path("academics/prerequisites/<uuid:pk>/", views.CoursePrerequisiteDeleteView.as_view(), name="prereq-delete"),
+    # Grades
+    path("academics/grades/", views.GradeListCreateView.as_view(), name="grade-list-create"),
+    path("academics/grades/export/", views.ExportGradesView.as_view(), name="grade-export"),
+    path("academics/grades/me/", views.MyGradesView.as_view(), name="my-grades"),
+    path("academics/grades/gpa/", views.GPAView.as_view(), name="gpa"),
+    path("academics/grades/<uuid:pk>/", views.GradeDetailView.as_view(), name="grade-detail"),
 ]

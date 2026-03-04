@@ -24,7 +24,7 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         model = Announcement
         fields = [
             "id", "title", "body", "created_by", "created_by_name",
-            "target_type", "target_id", "is_urgent",
+            "target_type", "target_id", "is_urgent", "attachments",
             "publish_at", "expires_at", "is_published", "created_at",
         ]
         read_only_fields = ["id", "created_at", "created_by"]
@@ -38,7 +38,7 @@ class MessageSerializer(serializers.ModelSerializer):
         model = Message
         fields = [
             "id", "sender", "sender_name", "receiver", "receiver_name",
-            "subject", "body", "is_read", "read_at", "created_at",
+            "subject", "body", "file", "file_name", "is_read", "read_at", "created_at",
         ]
         read_only_fields = ["id", "created_at", "sender", "is_read", "read_at"]
 

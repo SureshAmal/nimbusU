@@ -24,6 +24,10 @@ class Announcement(models.Model):
     target_type = models.CharField(max_length=20, choices=TargetType.choices)
     target_id = models.UUIDField(null=True, blank=True)
     is_urgent = models.BooleanField(default=False)
+    attachments = models.JSONField(
+        default=list, blank=True,
+        help_text="List of attachment metadata, e.g. [{'url': '...', 'name': '...'}]"
+    )
     publish_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     is_published = models.BooleanField(default=True)
@@ -55,6 +59,8 @@ class Message(models.Model):
     body = models.TextField()
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)
+    file = models.FileField(upload_to="messages/files/", null=True, blank=True)
+    file_name = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

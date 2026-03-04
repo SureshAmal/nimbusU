@@ -3,6 +3,8 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from apps.common.models import SoftDeleteModel
+
 
 class ContentFolder(models.Model):
     """Hierarchical folder structure for organizing content."""
@@ -61,7 +63,7 @@ class ContentTag(models.Model):
         return self.name
 
 
-class Content(models.Model):
+class Content(SoftDeleteModel):
     """A piece of content (document, video, image, link, etc.)."""
 
     class ContentType(models.TextChoices):

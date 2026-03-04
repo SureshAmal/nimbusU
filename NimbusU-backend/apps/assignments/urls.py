@@ -14,4 +14,12 @@ urlpatterns = [
     path("assignments/<uuid:pk>/submissions/", views.AssignmentSubmissionsView.as_view(), name="assignment-submissions"),
     path("assignments/<uuid:pk>/submissions/me/", views.MySubmissionView.as_view(), name="my-submission"),
     path("assignments/<uuid:pk>/submissions/<uuid:sub_id>/grade/", views.GradeSubmissionView.as_view(), name="grade-submission"),
+    # Grading Rubrics
+    path("assignments/rubrics/", views.GradingRubricListCreateView.as_view(), name="rubric-list-create"),
+    path("assignments/rubrics/<uuid:pk>/", views.GradingRubricDetailView.as_view(), name="rubric-detail"),
+    path("assignments/rubric-criteria/", views.RubricCriteriaListCreateView.as_view(), name="rubric-criteria-list-create"),
+    path("assignments/rubric-criteria/<uuid:pk>/", views.RubricCriteriaDetailView.as_view(), name="rubric-criteria-detail"),
+    # Assignment Groups
+    path("assignments/groups/", views.AssignmentGroupListCreateView.as_view(), name="group-list-create"),
+    path("assignments/groups/<uuid:pk>/", views.AssignmentGroupDetailView.as_view(), name="group-detail"),
 ]

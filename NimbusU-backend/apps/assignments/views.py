@@ -11,11 +11,14 @@ from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdminOrFaculty, IsFaculty, IsOwnerOrAdmin
 
-from .models import Assignment, Submission
+from .models import Assignment, Submission, GradingRubric, RubricCriteria, AssignmentGroup
 from .serializers import (
     AssignmentSerializer,
     GradeSubmissionSerializer,
     SubmissionSerializer,
+    GradingRubricSerializer,
+    RubricCriteriaSerializer,
+    AssignmentGroupSerializer,
 )
 
 
@@ -168,3 +171,71 @@ class ExportGradesView(APIView):
                 sub.status,
             ])
         return response
+
+
+# ─── Grading Rubrics ───────────────────────────────────────────────────
+
+
+class GradingRubricListCreateView(generics.ListCreateAPIView):
+    serializer_class = GradingRubricSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrFaculty]
+    filterset_fields = ["assignment"]
+
+    def get_queryset(self):
+        return GradingRubric.objects.select_related(
+            "assignment", "created_by"
+        ).prefetch_related("criteria").all()
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+class GradingRubricDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = GradingRubricSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrFaculty]
+
+    def get_queryset(self):
+        return GradingRubric.objects.select_related(
+            "assignment", "created_by"
+        ).prefetch_related("criteria").all()
+
+
+class RubricCriteriaListCreateView(generics.ListCreateAPIView):
+    serializer_class = RubricCriteriaSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrFaculty]
+    filterset_fields = ["rubric"]
+
+    def get_queryset(self):
+        return RubricCriteria.objects.all()
+
+
+class RubricCriteriaDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = RubricCriteriaSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrFaculty]
+
+    def get_queryset(self):
+        return RubricCriteria.objects.all()
+
+
+# ─── Assignment Groups ─────────────────────────────────────────────────
+
+
+class AssignmentGroupListCreateView(generics.ListCreateAPIView):
+    serializer_class = AssignmentGroupSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ["assignment", "members"]
+
+    def get_queryset(self):
+        return AssignmentGroup.objects.select_related(
+            "assignment", "submission"
+        ).prefetch_related("members").all()
+
+
+class AssignmentGroupDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AssignmentGroupSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return AssignmentGroup.objects.select_related(
+            "assignment", "submission"
+        ).prefetch_related("members").all()

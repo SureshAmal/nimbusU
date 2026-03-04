@@ -3,8 +3,10 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from apps.common.models import SoftDeleteModel
 
-class Assignment(models.Model):
+
+class Assignment(SoftDeleteModel):
     """Faculty-created assignment / quiz / exam."""
 
     class AssignmentType(models.TextChoices):
@@ -12,6 +14,12 @@ class Assignment(models.Model):
         QUIZ = "quiz", "Quiz"
         EXAM = "exam", "Exam"
         PROJECT = "project", "Project"
+
+    class LatePolicy(models.TextChoices):
+        NONE = "none", "No Penalty"
+        PERCENTAGE_PER_DAY = "percentage_per_day", "% Deduction Per Day"
+        FLAT_DEDUCTION = "flat_deduction", "Flat Mark Deduction"
+        NO_ACCEPT = "no_accept", "Do Not Accept Late"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=300)
@@ -35,6 +43,19 @@ class Assignment(models.Model):
     )
     attachments = models.JSONField(null=True, blank=True)
     is_published = models.BooleanField(default=False)
+    # Late submission policy
+    late_policy = models.CharField(
+        max_length=30,
+        choices=LatePolicy.choices,
+        default=LatePolicy.NONE,
+    )
+    late_penalty_value = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0,
+        help_text="% per day or flat marks to deduct",
+    )
+    max_late_days = models.IntegerField(
+        default=0, help_text="Maximum days late allowed (0 = unlimited)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -85,11 +106,87 @@ class Submission(models.Model):
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.SUBMITTED
     )
+    # Resubmission tracking
+    version = models.PositiveIntegerField(default=1)
+    is_final = models.BooleanField(
+        default=True, help_text="Is this the final submission to be graded?"
+    )
 
     class Meta:
         db_table = "submissions"
-        unique_together = ["assignment", "student"]
+        # Removed: unique_together = ["assignment", "student"]
         ordering = ["-submitted_at"]
 
     def __str__(self):
-        return f"{self.student} → {self.assignment}"
+        return f"{self.student} → {self.assignment} (v{self.version})"
+
+
+
+class GradingRubric(models.Model):
+    """A standardized grading rubric for an assignment."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    assignment = models.OneToOneField(
+        Assignment, on_delete=models.CASCADE, related_name="rubric"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="created_rubrics"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "grading_rubrics"
+
+    def __str__(self):
+        return f"Rubric for {self.assignment.title}"
+
+
+class RubricCriteria(models.Model):
+    """Individual criterion in a grading rubric (e.g., 'Code Quality')."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    rubric = models.ForeignKey(
+        GradingRubric, on_delete=models.CASCADE, related_name="criteria"
+    )
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default="")
+    max_marks = models.DecimalField(max_digits=5, decimal_places=2)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "rubric_criteria"
+        ordering = ["order", "name"]
+        unique_together = ["rubric", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.max_marks} marks) - Rubric {self.rubric.id}"
+
+
+class AssignmentGroup(models.Model):
+    """Team grouping for group assignments/projects."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    assignment = models.ForeignKey(
+        Assignment, on_delete=models.CASCADE, related_name="groups"
+    )
+    name = models.CharField(max_length=200)
+    members = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name="assignment_groups"
+    )
+    submission = models.ForeignKey(
+        Submission, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="group"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "assignment_groups"
+        ordering = ["name"]
+        unique_together = ["assignment", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.assignment.title})"

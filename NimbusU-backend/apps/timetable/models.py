@@ -74,6 +74,14 @@ class TimetableEntry(models.Model):
         related_name="timetable_entries",
     )
     is_active = models.BooleanField(default=True)
+    is_oneoff = models.BooleanField(
+        default=False, 
+        help_text="If True, this is a one-time makeup or extra session, not a regular weekly class."
+    )
+    oneoff_date = models.DateField(
+        null=True, blank=True,
+        help_text="Required if is_oneoff is True. The specific date of the session."
+    )
 
     class Meta:
         db_table = "timetable_entries"
@@ -206,6 +214,17 @@ class ClassCancellation(models.Model):
         on_delete=models.CASCADE,
         related_name="class_cancellations",
     )
+    is_makeup = models.BooleanField(
+        default=False,
+        help_text="Does this cancellation have a linked makeup session?"
+    )
+    makeup_entry = models.ForeignKey(
+        TimetableEntry,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="makeup_for_cancellation",
+        help_text="The one-off TimetableEntry created as a makeup for this class."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -215,4 +234,69 @@ class ClassCancellation(models.Model):
 
     def __str__(self):
         return f"{self.timetable_entry} on {self.original_date} → {self.get_action_display()}"
+
+
+class RoomBooking(models.Model):
+    """Booking a room for an extra session, club event, or seminar."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    room = models.ForeignKey(
+        Room, on_delete=models.CASCADE, related_name="bookings"
+    )
+    booked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="room_bookings"
+    )
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    purpose = models.CharField(max_length=300)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="approved_room_bookings"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "room_bookings"
+        ordering = ["-date", "-start_time"]
+        unique_together = ["room", "date", "start_time"]
+
+    def __str__(self):
+        return f"{self.room} booked by {self.booked_by} on {self.date}"
+
+
+class SubstituteFaculty(models.Model):
+    """Tracking when a different faculty member covers a class."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    timetable_entry = models.ForeignKey(
+        TimetableEntry, on_delete=models.CASCADE, related_name="substitutes"
+    )
+    substitute = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="substitute_classes"
+    )
+    date = models.DateField()
+    reason = models.TextField(blank=True, default="")
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="assigned_substitutes"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "substitute_faculty"
+        ordering = ["-date"]
+        unique_together = ["timetable_entry", "date"]
+
+    def __str__(self):
+        return f"{self.substitute} covering {self.timetable_entry} on {self.date}"
 
