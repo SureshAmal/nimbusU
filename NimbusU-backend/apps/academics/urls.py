@@ -31,4 +31,7 @@ urlpatterns = [
     path("academics/enrollments/", views.EnrollmentCreateView.as_view(), name="enrollment-create"),
     path("academics/enrollments/me/", views.MyEnrollmentsView.as_view(), name="my-enrollments"),
     path("academics/enrollments/<uuid:pk>/", views.EnrollmentDeleteView.as_view(), name="enrollment-delete"),
+    # Academic Calendar
+    path("academics/calendar/", views.AcademicEventListCreateView.as_view(), name="calendar-list-create"),
+    path("academics/calendar/<uuid:pk>/", views.AcademicEventDetailView.as_view(), name="calendar-detail"),
 ]

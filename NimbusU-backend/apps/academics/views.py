@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from apps.accounts.permissions import IsAdmin
 from apps.accounts.serializers import UserListSerializer
 
-from .models import Course, CourseOffering, Department, Enrollment, Program, School, Semester
+from .models import AcademicEvent, Course, CourseOffering, Department, Enrollment, Program, School, Semester
 from .serializers import (
     CourseOfferingSerializer,
     CourseSerializer,
@@ -18,6 +18,7 @@ from .serializers import (
     ProgramSerializer,
     SchoolSerializer,
     SemesterSerializer,
+    AcademicEventSerializer,
 )
 
 User = get_user_model()
@@ -232,3 +233,39 @@ class MyEnrollmentsView(generics.ListAPIView):
         return Enrollment.objects.filter(
             student=self.request.user
         ).select_related("course_offering__course")
+
+
+# ─── Academic Calendar ──────────────────────────────────────────────────
+
+
+class AcademicEventListCreateView(generics.ListCreateAPIView):
+    serializer_class = AcademicEventSerializer
+    filterset_fields = ["event_type", "semester", "is_university_wide", "department"]
+    search_fields = ["title", "description"]
+
+    def get_queryset(self):
+        return AcademicEvent.objects.select_related(
+            "semester", "department", "created_by"
+        ).all()
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [permissions.IsAuthenticated(), IsAdmin()]
+        return [permissions.IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+class AcademicEventDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AcademicEventSerializer
+
+    def get_queryset(self):
+        return AcademicEvent.objects.select_related(
+            "semester", "department", "created_by"
+        ).all()
+
+    def get_permissions(self):
+        if self.request.method in ("PATCH", "PUT", "DELETE"):
+            return [permissions.IsAuthenticated(), IsAdmin()]
+        return [permissions.IsAuthenticated()]

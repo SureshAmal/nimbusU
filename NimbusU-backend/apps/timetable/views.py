@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from apps.accounts.permissions import IsAdmin, IsAdminOrFaculty, IsFaculty
 from apps.academics.models import Enrollment
 
-from .models import AttendanceRecord, Room, TimetableEntry, TimetableSwapRequest
+from .models import AttendanceRecord, Room, TimetableEntry, TimetableSwapRequest, ClassCancellation
 from .serializers import (
     AttendanceRecordSerializer,
     BulkAttendanceSerializer,
@@ -17,6 +17,8 @@ from .serializers import (
     TimetableEntrySerializer,
     TimetableSwapRequestSerializer,
     TimetableSwapCreateSerializer,
+    ClassCancellationSerializer,
+    ClassCancellationCreateSerializer,
 )
 
 
@@ -393,3 +395,85 @@ class SwapRequestRespondView(APIView):
         )
 
         return Response({"status": "approved"})
+
+
+# ─── Class Cancellations ───────────────────────────────────────────────
+
+
+class ClassCancellationListCreateView(APIView):
+    """GET  /api/v1/timetable/cancellations/ — list cancellations for my courses.
+       POST /api/v1/timetable/cancellations/ — cancel or reschedule a class."""
+
+    permission_classes = [permissions.IsAuthenticated, IsFaculty]
+
+    def get(self, request):
+        qs = ClassCancellation.objects.filter(
+            cancelled_by=request.user
+        ).select_related(
+            "timetable_entry__course_offering__course", "cancelled_by",
+        ).order_by("-original_date")
+        data = ClassCancellationSerializer(qs, many=True).data
+        return Response(data)
+
+    def post(self, request):
+        ser = ClassCancellationCreateSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        d = ser.validated_data
+
+        try:
+            entry = TimetableEntry.objects.select_related(
+                "course_offering__course", "course_offering__faculty"
+            ).get(id=d["timetable_entry"])
+        except TimetableEntry.DoesNotExist:
+            return Response(
+                {"detail": "Timetable entry not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if entry.course_offering.faculty != request.user:
+            return Response(
+                {"detail": "You can only cancel your own classes."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        cancellation = ClassCancellation.objects.create(
+            timetable_entry=entry,
+            original_date=d["original_date"],
+            action=d["action"],
+            reason=d.get("reason", ""),
+            new_date=d.get("new_date"),
+            new_start_time=d.get("new_start_time"),
+            new_end_time=d.get("new_end_time"),
+            new_location=d.get("new_location", ""),
+            cancelled_by=request.user,
+        )
+
+        # Notify enrolled students
+        from apps.communications.models import Notification
+        student_ids = Enrollment.objects.filter(
+            course_offering=entry.course_offering, status="active"
+        ).values_list("student_id", flat=True)
+
+        action_text = "cancelled" if d["action"] == "cancelled" else "rescheduled"
+        course_name = entry.course_offering.course.name
+        notifications = [
+            Notification(
+                user_id=sid,
+                title=f"Class {action_text.title()}",
+                message=(
+                    f"{request.user.full_name} has {action_text} "
+                    f"\"{course_name}\" on {d['original_date']}."
+                    + (f" New date: {d.get('new_date')}" if d.get("new_date") else "")
+                ),
+                notification_type="timetable",
+                channel="in_app",
+                status="delivered",
+            )
+            for sid in student_ids
+        ]
+        Notification.objects.bulk_create(notifications)
+
+        return Response(
+            ClassCancellationSerializer(cancellation).data,
+            status=status.HTTP_201_CREATED,
+        )

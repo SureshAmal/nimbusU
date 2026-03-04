@@ -10,6 +10,8 @@ from .models import (
     Message,
     Notification,
     NotificationPreference,
+    WebhookEndpoint,
+    WebhookDelivery,
 )
 
 
@@ -99,3 +101,27 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
             "email_enabled", "push_enabled", "in_app_enabled",
         ]
         read_only_fields = ["id", "user"]
+
+
+class WebhookEndpointSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WebhookEndpoint
+        fields = [
+            "id", "name", "url", "secret", "events",
+            "owner", "is_active", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "owner", "created_at", "updated_at"]
+        extra_kwargs = {"secret": {"write_only": True}}
+
+
+class WebhookDeliverySerializer(serializers.ModelSerializer):
+    endpoint_name = serializers.CharField(source="endpoint.name", read_only=True)
+
+    class Meta:
+        model = WebhookDelivery
+        fields = [
+            "id", "endpoint", "endpoint_name", "event_type", "payload",
+            "status", "response_status_code", "response_body",
+            "attempts", "delivered_at", "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]

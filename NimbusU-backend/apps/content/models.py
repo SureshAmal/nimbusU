@@ -171,3 +171,63 @@ class Bookmark(models.Model):
 
     def __str__(self):
         return f"{self.user} → {self.content}"
+
+
+class ContentVersion(models.Model):
+    """Tracks revisions of content — each upload creates a new version."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    content = models.ForeignKey(
+        Content, on_delete=models.CASCADE, related_name="versions"
+    )
+    version_number = models.PositiveIntegerField()
+    file = models.FileField(upload_to="content/versions/%Y/%m/", null=True, blank=True)
+    file_size = models.BigIntegerField(null=True, blank=True)
+    change_summary = models.CharField(max_length=500, blank=True, default="")
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="content_versions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "content_versions"
+        ordering = ["-version_number"]
+        unique_together = ["content", "version_number"]
+
+    def __str__(self):
+        return f"{self.content.title} v{self.version_number}"
+
+
+class ContentComment(models.Model):
+    """Student/faculty comments and questions on content items."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    content = models.ForeignKey(
+        Content, on_delete=models.CASCADE, related_name="comments"
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="content_comments",
+    )
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="replies",
+        help_text="Reply to another comment",
+    )
+    body = models.TextField()
+    is_resolved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "content_comments"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.author} on {self.content.title}: {self.body[:50]}"

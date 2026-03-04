@@ -196,3 +196,65 @@ class NotificationPreference(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.notification_type}"
+
+
+class WebhookEndpoint(models.Model):
+    """Configurable webhook URL that receives HTTP POST on events."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200)
+    url = models.URLField(max_length=500)
+    secret = models.CharField(
+        max_length=200, blank=True, default="",
+        help_text="HMAC secret for signing payloads",
+    )
+    events = models.JSONField(
+        default=list,
+        help_text='List of event types, e.g. ["assignment.created", "grade.published"]',
+    )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="webhook_endpoints",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "webhook_endpoints"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.name} → {self.url}"
+
+
+class WebhookDelivery(models.Model):
+    """Log of each webhook delivery attempt."""
+
+    class DeliveryStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SUCCESS = "success", "Success"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    endpoint = models.ForeignKey(
+        WebhookEndpoint, on_delete=models.CASCADE, related_name="deliveries"
+    )
+    event_type = models.CharField(max_length=100)
+    payload = models.JSONField()
+    status = models.CharField(
+        max_length=20, choices=DeliveryStatus.choices, default=DeliveryStatus.PENDING,
+    )
+    response_status_code = models.SmallIntegerField(null=True, blank=True)
+    response_body = models.TextField(blank=True, default="")
+    attempts = models.PositiveSmallIntegerField(default=0)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "webhook_deliveries"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.event_type} → {self.endpoint.name} ({self.get_status_display()})"

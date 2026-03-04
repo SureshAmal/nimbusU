@@ -28,4 +28,8 @@ urlpatterns = [
     path("notifications/<uuid:pk>/read/", views.NotificationMarkReadView.as_view(), name="notification-mark-read"),
     # Admin
     path("notifications/admin/stats/", views.NotificationAdminStatsView.as_view(), name="notification-admin-stats"),
+    # Webhooks
+    path("webhooks/", views.WebhookEndpointListCreateView.as_view(), name="webhook-list-create"),
+    path("webhooks/<uuid:pk>/", views.WebhookEndpointDetailView.as_view(), name="webhook-detail"),
+    path("webhooks/<uuid:pk>/deliveries/", views.WebhookDeliveryListView.as_view(), name="webhook-deliveries"),
 ]

@@ -277,6 +277,107 @@ export interface AuditLog {
     created_at: string;
 }
 
+export interface AcademicEvent {
+    id: string;
+    title: string;
+    description: string;
+    event_type: "holiday" | "exam" | "event" | "deadline" | "registration" | "other";
+    event_type_display: string;
+    start_date: string;
+    end_date: string;
+    semester: string | null;
+    semester_name: string | null;
+    is_university_wide: boolean;
+    department: string | null;
+    department_name: string | null;
+    created_by: string;
+    created_by_name: string | null;
+    created_at: string;
+}
+
+export interface ClassCancellation {
+    id: string;
+    timetable_entry: string;
+    course_name: string;
+    original_date: string;
+    action: "cancelled" | "rescheduled";
+    action_display: string;
+    reason: string;
+    new_date: string | null;
+    new_start_time: string | null;
+    new_end_time: string | null;
+    new_location: string;
+    cancelled_by: string;
+    faculty_name: string;
+    created_at: string;
+}
+
+export interface ContentVersion {
+    id: string;
+    content: string;
+    version_number: number;
+    file: string | null;
+    file_size: number | null;
+    change_summary: string;
+    uploaded_by: string;
+    uploaded_by_name: string;
+    created_at: string;
+}
+
+export interface ContentComment {
+    id: string;
+    content: string;
+    author: string;
+    author_name: string;
+    parent: string | null;
+    body: string;
+    is_resolved: boolean;
+    reply_count: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface WebhookEndpoint {
+    id: string;
+    name: string;
+    url: string;
+    events: string[];
+    owner: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface WebhookDelivery {
+    id: string;
+    endpoint: string;
+    endpoint_name: string;
+    event_type: string;
+    payload: Record<string, unknown>;
+    status: "pending" | "success" | "failed";
+    response_status_code: number | null;
+    response_body: string;
+    attempts: number;
+    delivered_at: string | null;
+    created_at: string;
+}
+
+export interface TimetableSwapRequest {
+    id: string;
+    requester: string;
+    requester_name: string;
+    target_faculty: string;
+    target_faculty_name: string;
+    requester_entry: string;
+    requester_course_name: string;
+    target_entry: string;
+    target_course_name: string;
+    message: string;
+    status: "pending" | "approved" | "rejected";
+    responded_at: string | null;
+    created_at: string;
+}
+
 export interface PaginatedResponse<T> {
     count: number;
     next: string | null;

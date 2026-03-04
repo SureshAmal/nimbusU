@@ -20,6 +20,13 @@ import type {
     Message,
     Notification,
     AuditLog,
+    AcademicEvent,
+    ClassCancellation,
+    ContentVersion,
+    ContentComment,
+    WebhookEndpoint,
+    WebhookDelivery,
+    TimetableSwapRequest,
 } from "@/lib/types";
 
 /* ─── Users ───────────────────────────────────────────────────────── */
@@ -293,4 +300,77 @@ export const adminService = {
 export const auditLogsService = {
     list: (params?: Record<string, string>) =>
         api.get<PaginatedResponse<AuditLog>>("/admin/audit-logs/", { params }),
+};
+
+/* ─── Academic Calendar ──────────────────────────────────────────── */
+
+export const academicCalendarService = {
+    list: (params?: Record<string, string>) =>
+        api.get<PaginatedResponse<AcademicEvent>>("/academics/calendar/", { params }),
+    get: (id: string) => api.get<AcademicEvent>(`/academics/calendar/${id}/`),
+    create: (data: Partial<AcademicEvent>) =>
+        api.post<AcademicEvent>("/academics/calendar/", data),
+    update: (id: string, data: Partial<AcademicEvent>) =>
+        api.patch<AcademicEvent>(`/academics/calendar/${id}/`, data),
+    delete: (id: string) => api.delete(`/academics/calendar/${id}/`),
+};
+
+/* ─── Class Cancellations ────────────────────────────────────────── */
+
+export const classCancellationService = {
+    list: () => api.get<ClassCancellation[]>("/timetable/cancellations/"),
+    create: (data: {
+        timetable_entry: string;
+        original_date: string;
+        action: "cancelled" | "rescheduled";
+        reason?: string;
+        new_date?: string;
+        new_start_time?: string;
+        new_end_time?: string;
+        new_location?: string;
+    }) => api.post<ClassCancellation>("/timetable/cancellations/", data),
+};
+
+/* ─── Content Versions & Comments ────────────────────────────────── */
+
+export const contentVersionsService = {
+    list: (contentId: string) =>
+        api.get<PaginatedResponse<ContentVersion>>(`/content/${contentId}/versions/`),
+    create: (contentId: string, data: FormData) =>
+        api.post<ContentVersion>(`/content/${contentId}/versions/`, data, {
+            headers: { "Content-Type": "multipart/form-data" },
+        }),
+};
+
+export const contentCommentsService = {
+    list: (contentId: string) =>
+        api.get<PaginatedResponse<ContentComment>>(`/content/${contentId}/comments/`),
+    create: (contentId: string, data: { body: string; parent?: string }) =>
+        api.post<ContentComment>(`/content/${contentId}/comments/`, data),
+    replies: (commentId: string) =>
+        api.get<PaginatedResponse<ContentComment>>(`/content/comments/${commentId}/replies/`),
+};
+
+/* ─── Webhooks ───────────────────────────────────────────────────── */
+
+export const webhooksService = {
+    list: () => api.get<PaginatedResponse<WebhookEndpoint>>("/webhooks/"),
+    get: (id: string) => api.get<WebhookEndpoint>(`/webhooks/${id}/`),
+    create: (data: Partial<WebhookEndpoint> & { secret?: string }) =>
+        api.post<WebhookEndpoint>("/webhooks/", data),
+    update: (id: string, data: Partial<WebhookEndpoint>) =>
+        api.patch<WebhookEndpoint>(`/webhooks/${id}/`, data),
+    delete: (id: string) => api.delete(`/webhooks/${id}/`),
+    deliveries: (id: string) =>
+        api.get<PaginatedResponse<WebhookDelivery>>(`/webhooks/${id}/deliveries/`),
+};
+
+/* ─── Timetable Swaps ────────────────────────────────────────────── */
+
+export const swapRequestsService = {
+    list: () => api.get<TimetableSwapRequest[]>("/timetable/swap-requests/"),
+    create: (data: { requester_entry: string; target_entry: string; message?: string }) =>
+        api.post<TimetableSwapRequest>("/timetable/swap-requests/", data),
+    respond: (id: string, action: "approve" | "reject") =>
+        api.post(`/timetable/swap-requests/${id}/respond/`, { action }),
 };

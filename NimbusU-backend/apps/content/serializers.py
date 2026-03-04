@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from .models import Bookmark, Content, ContentAccessLog, ContentFolder, ContentTag
+from .models import Bookmark, Content, ContentAccessLog, ContentComment, ContentFolder, ContentTag, ContentVersion
 
 
 class ContentTagSerializer(serializers.ModelSerializer):
@@ -88,3 +88,32 @@ class BookmarkSerializer(serializers.ModelSerializer):
         model = Bookmark
         fields = ["id", "user", "content", "content_title", "content_type", "created_at"]
         read_only_fields = ["id", "created_at", "user"]
+
+
+class ContentVersionSerializer(serializers.ModelSerializer):
+    uploaded_by_name = serializers.CharField(source="uploaded_by.full_name", read_only=True)
+
+    class Meta:
+        model = ContentVersion
+        fields = [
+            "id", "content", "version_number", "file", "file_size",
+            "change_summary", "uploaded_by", "uploaded_by_name", "created_at",
+        ]
+        read_only_fields = ["id", "created_at", "uploaded_by", "version_number"]
+
+
+class ContentCommentSerializer(serializers.ModelSerializer):
+    author_name = serializers.CharField(source="author.full_name", read_only=True)
+    reply_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ContentComment
+        fields = [
+            "id", "content", "author", "author_name", "parent",
+            "body", "is_resolved", "reply_count",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "author", "created_at", "updated_at"]
+
+    def get_reply_count(self, obj) -> int:
+        return obj.replies.count()

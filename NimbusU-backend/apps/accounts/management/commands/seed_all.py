@@ -22,6 +22,7 @@ from apps.academics.models import (
     Program,
     School,
     Semester,
+    AcademicEvent,
 )
 from apps.accounts.models import AuditLog, FacultyProfile, StudentProfile
 from apps.assignments.models import Assignment, Submission
@@ -31,9 +32,11 @@ from apps.communications.models import (
     DiscussionPost,
     Message,
     Notification,
+    WebhookEndpoint,
+    WebhookDelivery,
 )
-from apps.content.models import Bookmark, Content, ContentFolder, ContentTag
-from apps.timetable.models import AttendanceRecord, Room, TimetableEntry, TimetableSwapRequest
+from apps.content.models import Bookmark, Content, ContentFolder, ContentTag, ContentComment, ContentVersion
+from apps.timetable.models import AttendanceRecord, Room, TimetableEntry, TimetableSwapRequest, ClassCancellation
 
 User = get_user_model()
 
@@ -175,11 +178,14 @@ class Command(BaseCommand):
         rooms = self._seed_rooms()
         self._seed_timetable(offerings, semester)
         self._seed_swap_requests(offerings, faculty_users)
+        self._seed_class_cancellations(offerings, student_users)
+        self._seed_academic_calendar(semester, admin, depts)
         self._seed_assignments(offerings, faculty_users, student_users)
         self._seed_announcements(admin, faculty_users)
-        self._seed_content(offerings, faculty_users)
+        self._seed_content(offerings, faculty_users, student_users)
         self._seed_messages(faculty_users, student_users)
         self._seed_notifications(student_users)
+        self._seed_webhooks(admin)
         self._seed_audit_logs(admin, faculty_users)
 
         self.stdout.write(self.style.SUCCESS("\n" + "=" * 55))
@@ -196,11 +202,12 @@ class Command(BaseCommand):
     def _flush(self):
         """Remove all seeded data in reverse-dependency order."""
         models = [
-            TimetableSwapRequest, AttendanceRecord, TimetableEntry, Room,
-            Bookmark, Content, ContentTag, ContentFolder,
+            WebhookDelivery, WebhookEndpoint,
+            ClassCancellation, TimetableSwapRequest, AttendanceRecord, TimetableEntry, Room,
+            Bookmark, ContentComment, ContentVersion, Content, ContentTag, ContentFolder,
             Notification, DiscussionPost, DiscussionForum, Message, Announcement,
             Submission, Assignment,
-            Enrollment, CourseOffering, Course, Semester, Program,
+            Enrollment, CourseOffering, Course, AcademicEvent, Semester, Program,
             AuditLog, StudentProfile, FacultyProfile,
         ]
         for m in models:
@@ -654,6 +661,65 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"  ✅ Swap requests: {count}"))
 
+    # ── Class Cancellations ─────────────────────────────────────────
+    def _seed_class_cancellations(self, offerings, student_users):
+        count = 0
+        cs401_entries = TimetableEntry.objects.filter(
+            course_offering=offerings.get("CS401")
+        ).order_by("day_of_week")
+
+        if cs401_entries.exists():
+            entry = cs401_entries.first()
+            # 1. Cancel a class
+            ClassCancellation.objects.create(
+                timetable_entry=entry,
+                original_date=date(2026, 3, 10),
+                action="cancelled",
+                reason="Faculty attending a conference",
+                cancelled_by=entry.course_offering.faculty,
+            )
+            count += 1
+
+            # 2. Reschedule a class
+            if cs401_entries.count() > 1:
+                entry2 = cs401_entries.last()
+                ClassCancellation.objects.create(
+                    timetable_entry=entry2,
+                    original_date=date(2026, 3, 12),
+                    action="rescheduled",
+                    reason="Doctor appointment",
+                    new_date=date(2026, 3, 13),
+                    new_start_time=time(16, 15),
+                    new_end_time=time(17, 15),
+                    new_location="Seminar Hall",
+                    cancelled_by=entry2.course_offering.faculty,
+                )
+                count += 1
+        self.stdout.write(self.style.SUCCESS(f"  ✅ Class Cancellations: {count}"))
+
+    # ── Academic Calendar ───────────────────────────────────────────
+    def _seed_academic_calendar(self, semester, admin, depts):
+        events = [
+            ("Holi Holiday", "Festival of colors", "holiday", date(2026, 3, 4), date(2026, 3, 4), True, None),
+            ("Mid-Semester Exams", "Spring 2026 Mid-sems", "exam", date(2026, 3, 15), date(2026, 3, 22), True, None),
+            ("Tech Symposium", "Annual tech fest", "event", date(2026, 4, 10), date(2026, 4, 12), False, depts.get("CS")),
+            ("Course Registration Deadline", "Last day to add/drop", "deadline", date(2026, 1, 25), date(2026, 1, 25), True, None),
+        ]
+        count = 0
+        for title, desc, etype, start, end, is_uni, dept in events:
+            _, created = AcademicEvent.objects.get_or_create(
+                title=title, semester=semester,
+                defaults={
+                    "description": desc, "event_type": etype,
+                    "start_date": start, "end_date": end,
+                    "is_university_wide": is_uni, "department": dept,
+                    "created_by": admin,
+                }
+            )
+            if created:
+                count += 1
+        self.stdout.write(self.style.SUCCESS(f"  ✅ Academic Events: {count}"))
+
     # ── Assignments ─────────────────────────────────────────────────
     def _seed_assignments(self, offerings, faculty_users, student_users):
         now = timezone.now()
@@ -726,7 +792,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"  ✅ Announcements: {count}"))
 
     # ── Content ─────────────────────────────────────────────────────
-    def _seed_content(self, offerings, faculty_users):
+    def _seed_content(self, offerings, faculty_users, student_users):
         # Tags
         tag_objs = {}
         for t in TAGS:
@@ -758,6 +824,28 @@ class Command(BaseCommand):
             )
             if created:
                 content.tags.set(random.sample(list(tag_objs.values()), min(3, len(tag_objs))))
+                
+                # Add versions
+                ContentVersion.objects.create(
+                    content=content, version_number=1,
+                    change_summary="Initial upload", uploaded_by=uploader,
+                )
+                if random.choice([True, False]):
+                    ContentVersion.objects.create(
+                        content=content, version_number=2,
+                        change_summary="Updated typos", uploaded_by=uploader,
+                    )
+                
+                # Add comments if there are students
+                if student_users:
+                    stu = random.choice(student_users)
+                    c1 = ContentComment.objects.create(
+                        content=content, author=stu, body="Thanks for sharing this!"
+                    )
+                    ContentComment.objects.create(
+                        content=content, author=uploader, parent=c1, body="You're welcome. Let me know if you have questions."
+                    )
+                
                 count += 1
         self.stdout.write(self.style.SUCCESS(f"  ✅ Content items: {count}, Tags: {len(tag_objs)}"))
 
@@ -809,6 +897,31 @@ class Command(BaseCommand):
                 if created:
                     count += 1
         self.stdout.write(self.style.SUCCESS(f"  ✅ Notifications: {count}"))
+
+    # ── Webhooks ────────────────────────────────────────────────────
+    def _seed_webhooks(self, admin):
+        endpoint, created = WebhookEndpoint.objects.get_or_create(
+            name="Library System Integration",
+            url="https://library.nimbusu.edu/api/webhooks/users",
+            owner=admin,
+            defaults={
+                "events": ["user.created", "user.updated", "enrollment.created"],
+                "is_active": True,
+                "secret": "simulated_secret_key_123",
+            }
+        )
+        if created:
+            WebhookDelivery.objects.create(
+                endpoint=endpoint,
+                event_type="user.created",
+                payload={"user_id": "123", "email": "test@nimbusu.edu"},
+                status="success",
+                response_status_code=200,
+                response_body='{"ok": true}',
+                attempts=1,
+                delivered_at=timezone.now(),
+            )
+            self.stdout.write(self.style.SUCCESS("  ✅ Webhooks: 1 endpoint, 1 delivery log"))
 
     # ── Audit Logs ──────────────────────────────────────────────────
     def _seed_audit_logs(self, admin, faculty_users):

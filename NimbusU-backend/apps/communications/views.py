@@ -18,6 +18,8 @@ from .models import (
     Message,
     Notification,
     NotificationPreference,
+    WebhookEndpoint,
+    WebhookDelivery,
 )
 from .serializers import (
     AnnouncementSerializer,
@@ -26,6 +28,8 @@ from .serializers import (
     MessageSerializer,
     NotificationPreferenceSerializer,
     NotificationSerializer,
+    WebhookEndpointSerializer,
+    WebhookDeliverySerializer,
 )
 
 
@@ -322,3 +326,35 @@ class NotificationAdminStatsView(APIView):
             status__in=["sent", "delivered"]
         ).count()
         return round(delivered / total * 100, 1)
+
+
+# ─── Webhooks ──────────────────────────────────────────────────────────
+
+
+class WebhookEndpointListCreateView(generics.ListCreateAPIView):
+    serializer_class = WebhookEndpointSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
+    def get_queryset(self):
+        return WebhookEndpoint.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+
+class WebhookEndpointDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = WebhookEndpointSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+    queryset = WebhookEndpoint.objects.all()
+
+
+class WebhookDeliveryListView(generics.ListAPIView):
+    """GET /api/v1/webhooks/{id}/deliveries/"""
+
+    serializer_class = WebhookDeliverySerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
+    def get_queryset(self):
+        return WebhookDelivery.objects.filter(
+            endpoint_id=self.kwargs["pk"]
+        ).select_related("endpoint")

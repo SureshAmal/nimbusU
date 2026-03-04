@@ -178,3 +178,57 @@ class Enrollment(models.Model):
 
     def __str__(self):
         return f"{self.student} → {self.course_offering}"
+
+
+class AcademicEvent(models.Model):
+    """University-wide academic calendar events (holidays, exams, etc.)."""
+
+    class EventType(models.TextChoices):
+        HOLIDAY = "holiday", "Holiday"
+        EXAM = "exam", "Examination Period"
+        REGISTRATION = "registration", "Registration Period"
+        CLASSES_START = "classes_start", "Classes Start"
+        CLASSES_END = "classes_end", "Classes End"
+        BREAK = "break", "Break"
+        EVENT = "event", "Event"
+        DEADLINE = "deadline", "Deadline"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True, default="")
+    event_type = models.CharField(max_length=30, choices=EventType.choices)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    semester = models.ForeignKey(
+        Semester,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="academic_events",
+    )
+    is_university_wide = models.BooleanField(
+        default=True, help_text="Applies to the entire university"
+    )
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="academic_events",
+        help_text="If not university-wide, specific department",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_events",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "academic_events"
+        ordering = ["start_date"]
+
+    def __str__(self):
+        return f"{self.title} ({self.start_date} – {self.end_date})"

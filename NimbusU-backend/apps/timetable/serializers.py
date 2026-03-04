@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from .models import AttendanceRecord, Room, TimetableEntry, TimetableSwapRequest
+from .models import AttendanceRecord, Room, TimetableEntry, TimetableSwapRequest, ClassCancellation
 
 
 class RoomSerializer(serializers.ModelSerializer):
@@ -101,3 +101,41 @@ class TimetableSwapCreateSerializer(serializers.Serializer):
     requester_entry = serializers.UUIDField()
     target_entry = serializers.UUIDField()
     message = serializers.CharField(required=False, default="", allow_blank=True)
+
+
+class ClassCancellationSerializer(serializers.ModelSerializer):
+    """Read serializer for class cancellations."""
+
+    course_name = serializers.CharField(
+        source="timetable_entry.course_offering.course.name", read_only=True
+    )
+    faculty_name = serializers.CharField(
+        source="cancelled_by.full_name", read_only=True
+    )
+    action_display = serializers.CharField(
+        source="get_action_display", read_only=True
+    )
+
+    class Meta:
+        model = ClassCancellation
+        fields = [
+            "id", "timetable_entry", "course_name", "original_date",
+            "action", "action_display", "reason",
+            "new_date", "new_start_time", "new_end_time", "new_location",
+            "cancelled_by", "faculty_name", "created_at",
+        ]
+        read_only_fields = ["id", "cancelled_by", "created_at"]
+
+
+class ClassCancellationCreateSerializer(serializers.Serializer):
+    """Write serializer for cancelling or rescheduling a class."""
+
+    timetable_entry = serializers.UUIDField()
+    original_date = serializers.DateField()
+    action = serializers.ChoiceField(choices=["cancelled", "rescheduled"])
+    reason = serializers.CharField(required=False, default="", allow_blank=True)
+    # Only for rescheduled
+    new_date = serializers.DateField(required=False)
+    new_start_time = serializers.TimeField(required=False)
+    new_end_time = serializers.TimeField(required=False)
+    new_location = serializers.CharField(required=False, default="", allow_blank=True)

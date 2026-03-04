@@ -21,4 +21,9 @@ urlpatterns = [
     # Bookmarks
     path("content/bookmarks/", views.BookmarkListCreateView.as_view(), name="bookmark-list-create"),
     path("content/bookmarks/<uuid:pk>/", views.BookmarkDeleteView.as_view(), name="bookmark-delete"),
+    # Versions
+    path("content/<uuid:pk>/versions/", views.ContentVersionListCreateView.as_view(), name="version-list-create"),
+    # Comments
+    path("content/<uuid:pk>/comments/", views.ContentCommentListCreateView.as_view(), name="comment-list-create"),
+    path("content/comments/<uuid:pk>/replies/", views.ContentCommentReplyListView.as_view(), name="comment-replies"),
 ]

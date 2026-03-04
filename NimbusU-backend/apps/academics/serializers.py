@@ -3,7 +3,7 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from .models import Course, CourseOffering, Department, Enrollment, Program, School, Semester
+from .models import AcademicEvent, Course, CourseOffering, Department, Enrollment, Program, School, Semester
 
 
 class SchoolSerializer(serializers.ModelSerializer):
@@ -89,3 +89,20 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             "enrolled_at", "status",
         ]
         read_only_fields = ["id", "enrolled_at"]
+
+
+class AcademicEventSerializer(serializers.ModelSerializer):
+    semester_name = serializers.CharField(source="semester.name", read_only=True, default=None)
+    department_name = serializers.CharField(source="department.name", read_only=True, default=None)
+    created_by_name = serializers.CharField(source="created_by.full_name", read_only=True, default=None)
+    event_type_display = serializers.CharField(source="get_event_type_display", read_only=True)
+
+    class Meta:
+        model = AcademicEvent
+        fields = [
+            "id", "title", "description", "event_type", "event_type_display",
+            "start_date", "end_date", "semester", "semester_name",
+            "is_university_wide", "department", "department_name",
+            "created_by", "created_by_name", "created_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_at"]

@@ -178,3 +178,41 @@ class TimetableSwapRequest(models.Model):
             f"Swap: {self.requester} ↔ {self.target_faculty} "
             f"({self.get_status_display()})"
         )
+
+
+class ClassCancellation(models.Model):
+    """Faculty cancels or reschedules a specific class session."""
+
+    class ActionType(models.TextChoices):
+        CANCELLED = "cancelled", "Cancelled"
+        RESCHEDULED = "rescheduled", "Rescheduled"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    timetable_entry = models.ForeignKey(
+        TimetableEntry,
+        on_delete=models.CASCADE,
+        related_name="cancellations",
+    )
+    original_date = models.DateField(help_text="The date the class was supposed to occur")
+    action = models.CharField(max_length=20, choices=ActionType.choices)
+    reason = models.TextField(blank=True, default="")
+    # Reschedule fields (only used when action='rescheduled')
+    new_date = models.DateField(null=True, blank=True)
+    new_start_time = models.TimeField(null=True, blank=True)
+    new_end_time = models.TimeField(null=True, blank=True)
+    new_location = models.CharField(max_length=200, blank=True, default="")
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="class_cancellations",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "class_cancellations"
+        ordering = ["-original_date"]
+        unique_together = ["timetable_entry", "original_date"]
+
+    def __str__(self):
+        return f"{self.timetable_entry} on {self.original_date} → {self.get_action_display()}"
+

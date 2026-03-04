@@ -18,6 +18,8 @@ urlpatterns = [
     # Swap requests
     path("timetable/swap-requests/", views.SwapRequestListCreateView.as_view(), name="swap-list-create"),
     path("timetable/swap-requests/<uuid:pk>/respond/", views.SwapRequestRespondView.as_view(), name="swap-respond"),
+    # Class cancellations
+    path("timetable/cancellations/", views.ClassCancellationListCreateView.as_view(), name="cancellation-list-create"),
     # Attendance
     path("attendance/mark/", views.BulkAttendanceView.as_view(), name="bulk-attendance"),
     path("attendance/me/", views.MyAttendanceView.as_view(), name="my-attendance"),

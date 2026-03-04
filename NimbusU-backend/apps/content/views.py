@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdminOrFaculty, IsOwnerOrAdmin
 
-from .models import Bookmark, Content, ContentAccessLog, ContentFolder, ContentTag
+from .models import Bookmark, Content, ContentAccessLog, ContentComment, ContentFolder, ContentTag, ContentVersion
 from .serializers import (
     BookmarkSerializer,
     ContentAccessLogSerializer,
@@ -15,6 +15,8 @@ from .serializers import (
     ContentFolderSerializer,
     ContentListSerializer,
     ContentTagSerializer,
+    ContentVersionSerializer,
+    ContentCommentSerializer,
 )
 
 
@@ -200,3 +202,66 @@ class BookmarkDeleteView(generics.DestroyAPIView):
         if getattr(self, "swagger_fake_view", False):
             return Bookmark.objects.none()
         return Bookmark.objects.filter(user=self.request.user)
+
+
+# ─── Content Versions ───────────────────────────────────────────────────
+
+
+class ContentVersionListCreateView(generics.ListCreateAPIView):
+    """GET/POST /api/v1/content/{id}/versions/"""
+
+    serializer_class = ContentVersionSerializer
+
+    def get_queryset(self):
+        return ContentVersion.objects.filter(
+            content_id=self.kwargs["pk"]
+        ).select_related("uploaded_by")
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [permissions.IsAuthenticated(), IsAdminOrFaculty()]
+        return [permissions.IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        content = Content.objects.get(pk=self.kwargs["pk"])
+        latest = content.versions.order_by("-version_number").first()
+        next_version = (latest.version_number + 1) if latest else 1
+        instance = serializer.save(
+            content=content,
+            uploaded_by=self.request.user,
+            version_number=next_version,
+        )
+        if instance.file:
+            instance.file_size = instance.file.size
+            instance.save(update_fields=["file_size"])
+
+
+# ─── Content Comments ───────────────────────────────────────────────────
+
+
+class ContentCommentListCreateView(generics.ListCreateAPIView):
+    """GET/POST /api/v1/content/{id}/comments/"""
+
+    serializer_class = ContentCommentSerializer
+
+    def get_queryset(self):
+        return ContentComment.objects.filter(
+            content_id=self.kwargs["pk"], parent__isnull=True,
+        ).select_related("author").prefetch_related("replies")
+
+    def perform_create(self, serializer):
+        serializer.save(
+            content_id=self.kwargs["pk"],
+            author=self.request.user,
+        )
+
+
+class ContentCommentReplyListView(generics.ListAPIView):
+    """GET /api/v1/content/comments/{id}/replies/"""
+
+    serializer_class = ContentCommentSerializer
+
+    def get_queryset(self):
+        return ContentComment.objects.filter(
+            parent_id=self.kwargs["pk"]
+        ).select_related("author")
