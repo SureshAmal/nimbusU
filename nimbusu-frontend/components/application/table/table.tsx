@@ -75,7 +75,7 @@ const TableCardRoot = ({
       <div
         {...props}
         className={cx(
-          "overflow-hidden rounded-[var(--radius)] shadow-xs border border-border",
+          "overflow-x-auto overflow-y-hidden rounded-[var(--radius)] shadow-xs border border-border",
           className,
         )}
       >
@@ -144,8 +144,8 @@ const TableCardHeader = ({
 
 interface TableRootProps
   extends
-    AriaTableProps,
-    Omit<ComponentPropsWithRef<"table">, "className" | "slot" | "style"> {
+  AriaTableProps,
+  Omit<ComponentPropsWithRef<"table">, "className" | "slot" | "style"> {
   size?: "sm" | "md";
 }
 
@@ -172,11 +172,11 @@ TableRoot.displayName = "Table";
 
 interface TableHeaderProps<T extends object>
   extends
-    AriaTableHeaderProps<T>,
-    Omit<
-      ComponentPropsWithRef<"thead">,
-      "children" | "className" | "slot" | "style"
-    > {
+  AriaTableHeaderProps<T>,
+  Omit<
+    ComponentPropsWithRef<"thead">,
+    "children" | "className" | "slot" | "style"
+  > {
   bordered?: boolean;
 }
 
@@ -204,7 +204,7 @@ const TableHeader = <T extends object>({
           typeof className === "function" ? className(state) : className,
           // apply bg-secondary if no specific bg color is provided by className override
           !(typeof className === "string" && className.includes("bg-")) &&
-            "bg-secondary",
+          "bg-secondary",
         )
       }
     >
@@ -231,11 +231,11 @@ TableHeader.displayName = "TableHeader";
 
 interface TableHeadProps
   extends
-    AriaColumnProps,
-    Omit<
-      ThHTMLAttributes<HTMLTableCellElement>,
-      "children" | "className" | "style" | "id"
-    > {
+  AriaColumnProps,
+  Omit<
+    ThHTMLAttributes<HTMLTableCellElement>,
+    "children" | "className" | "style" | "id"
+  > {
   label?: string;
   tooltip?: string;
 }
@@ -304,11 +304,11 @@ TableHead.displayName = "TableHead";
 
 interface TableRowProps<T extends object>
   extends
-    AriaRowProps<T>,
-    Omit<
-      ComponentPropsWithRef<"tr">,
-      "children" | "className" | "onClick" | "slot" | "style" | "id"
-    > {
+  AriaRowProps<T>,
+  Omit<
+    ComponentPropsWithRef<"tr">,
+    "children" | "className" | "onClick" | "slot" | "style" | "id"
+  > {
   highlightSelectedRow?: boolean;
 }
 
@@ -372,11 +372,11 @@ const TableRow = TableRowInner as <T extends object>(
 
 interface TableCellProps
   extends
-    AriaCellProps,
-    Omit<
-      TdHTMLAttributes<HTMLTableCellElement>,
-      "children" | "className" | "style" | "id"
-    > {
+  AriaCellProps,
+  Omit<
+    TdHTMLAttributes<HTMLTableCellElement>,
+    "children" | "className" | "style" | "id"
+  > {
   ref?: Ref<HTMLTableCellElement>;
 }
 

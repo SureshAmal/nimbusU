@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, Settings } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,20 @@ export function AppHeader() {
 
             {/* Breadcrumb / Page title placeholder */}
             <div className="flex-1" />
+
+            {/* Settings */}
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                    window.dispatchEvent(
+                        new KeyboardEvent("keydown", { key: ",", ctrlKey: true, bubbles: true })
+                    );
+                }}
+                title="Settings (Ctrl+,)"
+            >
+                <Settings className="h-4 w-4" />
+            </Button>
 
             {/* Notifications */}
             <Button variant="ghost" size="icon" asChild className="relative">

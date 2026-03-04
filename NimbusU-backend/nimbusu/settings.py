@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_filters",
     "drf_spectacular",
+    "storages",
     # Local apps
     "apps.accounts",
     "apps.academics",
@@ -154,6 +155,34 @@ CORS_ALLOW_CREDENTIALS = True
 # ─── File upload limits ────────────────────────────────────────────────
 FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100MB
+
+# ─── MinIO / S3 Storage ────────────────────────────────────────────
+MINIO_ENDPOINT = config("MINIO_ENDPOINT", default="http://localhost:9000")
+MINIO_ACCESS_KEY = config("MINIO_ACCESS_KEY", default="minioadmin")
+MINIO_SECRET_KEY = config("MINIO_SECRET_KEY", default="minioadmin")
+MINIO_BUCKET_NAME = config("MINIO_BUCKET_NAME", default="nimbusu-media")
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {
+            "access_key": MINIO_ACCESS_KEY,
+            "secret_key": MINIO_SECRET_KEY,
+            "bucket_name": MINIO_BUCKET_NAME,
+            "endpoint_url": MINIO_ENDPOINT,
+            "custom_domain": None,
+            "file_overwrite": False,
+            "default_acl": "public-read",
+            "querystring_auth": False,
+            "url_protocol": "http:",
+        },
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+MEDIA_URL = f"{MINIO_ENDPOINT}/{MINIO_BUCKET_NAME}/"
 
 # ─── OpenAPI / drf-spectacular ──────────────────────────────────────────
 SPECTACULAR_SETTINGS = {

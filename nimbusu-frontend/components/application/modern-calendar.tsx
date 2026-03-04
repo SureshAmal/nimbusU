@@ -63,7 +63,9 @@ export function ModernEventCalendar({
 }: CalendarProps) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedMonthDate, setSelectedMonthDate] = useState<Date>(new Date());
-    const [view, setView] = useState<ViewMode>("week");
+    const [view, setView] = useState<ViewMode>(
+        typeof window !== "undefined" && window.innerWidth < 640 ? "day" : "week"
+    );
 
     // Current time indicator line
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -169,7 +171,7 @@ export function ModernEventCalendar({
         const selectedDayEvents = getEventsForDay(selectedMonthDate);
 
         return (
-            <div className="flex flex-1 h-[calc(100vh-18rem)] gap-4">
+            <div className="flex flex-col lg:flex-row flex-1 h-full gap-4">
                 <div className="flex flex-col flex-1 rounded-[var(--radius)] border border-border overflow-hidden bg-background shadow-sm">
                     <div className="grid grid-cols-7 border-b border-border bg-muted/40">
                         {weekDays.map((day) => (
@@ -244,7 +246,7 @@ export function ModernEventCalendar({
                 </div>
 
                 {/* Side Panel for Selected Date */}
-                <div className="w-[300px] flex-shrink-0 flex flex-col rounded-[var(--radius)] border border-border bg-background shadow-sm overflow-hidden animate-in slide-in-from-right-4 duration-300">
+                <div className="w-full lg:w-[300px] flex-shrink-0 flex flex-col rounded-[var(--radius)] border border-border bg-background shadow-sm overflow-hidden animate-in slide-in-from-right-4 duration-300 max-h-[200px] lg:max-h-none">
                     <div className="p-4 border-b border-border bg-muted/20">
                         <div className="text-xl font-bold">{format(selectedMonthDate, "d")}</div>
                         <div className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
@@ -298,7 +300,7 @@ export function ModernEventCalendar({
         const isCurrentWeek = days.some(day => isSameDay(day, currentTime));
 
         return (
-            <div className="flex flex-col h-[calc(100vh-18rem)] bg-background rounded-[var(--radius)] border border-border overflow-hidden shadow-sm">
+            <div className="flex flex-col h-full bg-background rounded-[var(--radius)] border border-border overflow-hidden shadow-sm min-w-[640px]">
                 <div className="flex border-b border-border bg-muted/40 sticky top-0 z-30">
                     <div className="w-16 shrink-0 border-r border-border" />
                     {days.map((day) => (
@@ -437,7 +439,7 @@ export function ModernEventCalendar({
         const currentTop = currentHour * 112;
 
         return (
-            <div className="flex flex-col h-[calc(100vh-18rem)] bg-background rounded-[var(--radius)] border border-border overflow-hidden shadow-sm">
+            <div className="flex flex-col h-full bg-background rounded-[var(--radius)] border border-border overflow-hidden shadow-sm">
                 <div className="flex border-b border-border py-4 items-center justify-center bg-muted/40 sticky top-0 z-30">
                     <div className="flex items-center gap-3">
                         <span className={cn(
@@ -548,23 +550,23 @@ export function ModernEventCalendar({
     };
 
     return (
-        <div className="flex flex-col h-full gap-4">
+        <div className="flex flex-col h-full gap-3 sm:gap-4">
             {/* Top Toolbar */}
-            <div className="flex items-center justify-between pb-2">
-                {/* Left: Search */}
-                <div className="flex items-center gap-3">
-                    <div className="relative">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 pb-1 sm:pb-2">
+                {/* Row 1: Search + View selector */}
+                <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:flex-none">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search in calendar..."
                             value={searchQuery}
                             onChange={(e) => onSearchChange?.(e.target.value)}
-                            className="w-[280px] pl-9 h-10 bg-background/50 border-border focus-visible:ring-1 focus-visible:ring-ring"
+                            className="w-full sm:w-[220px] pl-9 h-9 sm:h-10 bg-background/50 border-border focus-visible:ring-1 focus-visible:ring-ring"
                         />
                     </div>
 
                     <Select value={view} onValueChange={(v: ViewMode) => setView(v)}>
-                        <SelectTrigger className="w-[120px] h-10 font-medium">
+                        <SelectTrigger className="w-[100px] sm:w-[120px] h-9 sm:h-10 font-medium shrink-0">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -575,23 +577,23 @@ export function ModernEventCalendar({
                     </Select>
                 </div>
 
-                {/* Middle: Navigation */}
-                <div className="flex items-center gap-3">
+                {/* Row 2: Navigation */}
+                <div className="flex items-center gap-2 sm:gap-3 sm:ml-auto">
                     <div className="flex items-center gap-0.5 rounded-lg border bg-background p-1 shadow-sm">
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={handlePrevious}
-                            className="h-8 w-8 rounded-md hover:bg-muted"
+                            className="h-7 w-7 sm:h-8 sm:w-8 rounded-md hover:bg-muted"
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <div className="w-px h-4 bg-border mx-1" />
+                        <div className="w-px h-4 bg-border mx-0.5 sm:mx-1" />
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={handleNext}
-                            className="h-8 w-8 rounded-md hover:bg-muted"
+                            className="h-7 w-7 sm:h-8 sm:w-8 rounded-md hover:bg-muted"
                         >
                             <ChevronRight className="h-4 w-4" />
                         </Button>
@@ -600,20 +602,20 @@ export function ModernEventCalendar({
                     <Button
                         variant="secondary"
                         onClick={handleToday}
-                        className="h-10 px-5 font-semibold"
+                        className="h-9 sm:h-10 px-3 sm:px-5 font-semibold text-sm"
                     >
                         Today
                     </Button>
 
-                    <div className="flex items-center gap-2.5 px-5 h-10 bg-muted/50 border rounded-lg text-sm font-semibold text-foreground/90 tabular-nums">
-                        <CalendarIcon className="h-4 w-4 text-primary" />
-                        {title()}
+                    <div className="flex items-center gap-1.5 sm:gap-2.5 px-2.5 sm:px-5 h-9 sm:h-10 bg-muted/50 border rounded-lg text-xs sm:text-sm font-semibold text-foreground/90 tabular-nums">
+                        <CalendarIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary shrink-0" />
+                        <span className="truncate">{title()}</span>
                     </div>
                 </div>
             </div>
 
             {/* Calendar Body */}
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-x-auto">
                 {view === "month" && renderMonthView()}
                 {view === "week" && renderWeekView()}
                 {view === "day" && renderDayView()}

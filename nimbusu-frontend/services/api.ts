@@ -44,6 +44,8 @@ export const usersService = {
             headers: { "Content-Type": "multipart/form-data" },
         });
     },
+    changePassword: (data: { old_password: string; new_password: string }) =>
+        api.post("/auth/password/change/", data),
 };
 
 /* ─── Schools ─────────────────────────────────────────────────────── */

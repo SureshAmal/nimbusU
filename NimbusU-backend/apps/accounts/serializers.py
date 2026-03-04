@@ -55,7 +55,7 @@ class UserListSerializer(serializers.ModelSerializer):
         fields = [
             "id", "email", "first_name", "last_name", "role",
             "department", "department_name", "school_name", "program_name",
-            "phone",
+            "profile_picture", "phone",
             "is_active", "last_login", "created_at",
             "student_profile", "faculty_profile",
         ]

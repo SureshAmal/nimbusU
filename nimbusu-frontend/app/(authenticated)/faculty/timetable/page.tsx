@@ -1,31 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { timetableService } from "@/services/api";
 import type { TimetableEntry } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Clock, MapPin } from "lucide-react";
+import {
+    ModernEventCalendar,
+    CalendarEvent,
+} from "@/components/application/modern-calendar";
+import { parse, setDay, startOfWeek, addWeeks } from "date-fns";
 
-const DAYS = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-const TYPE_COLORS: Record<string, string> = {
-    classroom: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-    lab: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    tutorial: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+const SUBJECT_COLORS: Record<string, string> = {
+    classroom: "bg-cyan-500/10 border-cyan-500/20 text-cyan-700 dark:text-cyan-400",
+    lab: "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400",
+    tutorial: "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400",
 };
 
-const BORDER_COLORS: Record<string, string> = {
-    classroom: "var(--color-blue-500)",
-    lab: "var(--color-emerald-500)",
-    tutorial: "var(--color-amber-500)",
-};
+function generateEventsForEntry(
+    entry: TimetableEntry,
+    baseDate: Date,
+    weeksBefore: number,
+    weeksAfter: number,
+): CalendarEvent[] {
+    const events: CalendarEvent[] = [];
+    const baseWeekStart = startOfWeek(baseDate, { weekStartsOn: 1 });
+    let targetDayIndex = entry.day_of_week;
+    if (targetDayIndex === 7) targetDayIndex = 0;
+
+    for (let i = -weeksBefore; i <= weeksAfter; i++) {
+        const weekStart = addWeeks(baseWeekStart, i);
+        const eventDate = setDay(weekStart, targetDayIndex + 1, { weekStartsOn: 1 });
+        const startTimeStr = entry.start_time.substring(0, 5);
+        const endTimeStr = entry.end_time.substring(0, 5);
+        const start = parse(startTimeStr, "HH:mm", eventDate);
+        const end = parse(endTimeStr, "HH:mm", eventDate);
+        events.push({
+            id: `${entry.id}-${eventDate.toISOString()}`,
+            title: entry.course_name,
+            start,
+            end,
+            color: SUBJECT_COLORS[entry.subject_type] ?? "bg-blue-500/10 border-blue-500/20 text-blue-700 dark:text-blue-400",
+            extendedProps: {
+                description: `${entry.location} • Batch ${entry.batch} • ${entry.subject_type_display}`,
+                entry,
+            },
+        });
+    }
+    return events;
+}
 
 export default function FacultyTimetablePage() {
     const [entries, setEntries] = useState<TimetableEntry[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         async function fetch() {
@@ -38,45 +66,43 @@ export default function FacultyTimetablePage() {
         fetch();
     }, []);
 
-    if (loading) return <div className="space-y-6"><Skeleton className="h-8 w-48" /><Skeleton className="h-[400px]" style={{ borderRadius: "var(--radius-lg)" }} /></div>;
+    const filteredEntries = useMemo(() => {
+        if (!searchQuery) return entries;
+        const q = searchQuery.toLowerCase();
+        return entries.filter((e) =>
+            e.course_name.toLowerCase().includes(q) ||
+            e.course_code.toLowerCase().includes(q) ||
+            e.location.toLowerCase().includes(q) ||
+            e.batch.toLowerCase().includes(q)
+        );
+    }, [entries, searchQuery]);
 
-    const byDay = DAYS.slice(1).map((day, i) => ({
-        day,
-        entries: entries.filter((e) => e.day_of_week === i + 1).sort((a, b) => a.start_time.localeCompare(b.start_time)),
-    }));
+    const calendarEvents = useMemo(() => {
+        const today = new Date();
+        const all: CalendarEvent[] = [];
+        filteredEntries.forEach((entry) => {
+            all.push(...generateEventsForEntry(entry, today, 10, 10));
+        });
+        return all;
+    }, [filteredEntries]);
+
+    if (loading) {
+        return (
+            <div className="flex flex-col h-[calc(100vh-7rem)] min-h-[500px] space-y-4">
+                <Skeleton className="h-12 w-full rounded-[var(--radius)]" />
+                <Skeleton className="flex-1 w-full rounded-[var(--radius)]" />
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-6">
-            <div><h1 className="text-2xl font-bold tracking-tight">My Schedule</h1><p className="text-muted-foreground text-sm">Your weekly teaching timetable</p></div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {byDay.map(({ day, entries: dayEntries }) => (
-                    <Card key={day} style={{ boxShadow: "var(--shadow-sm)", borderRadius: "var(--radius-lg)" }}>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{day}</CardTitle></CardHeader>
-                        <CardContent className="space-y-2">
-                            {dayEntries.length === 0 ? (
-                                <p className="text-xs text-muted-foreground">No classes</p>
-                            ) : dayEntries.map((e) => (
-                                <div key={e.id} className="flex items-start gap-3 border-l-3 pl-3 py-1.5" style={{ borderColor: BORDER_COLORS[e.subject_type] ?? BORDER_COLORS.classroom }}>
-                                    <Clock className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: "var(--muted-foreground)" }} />
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-sm font-medium truncate">{e.course_name}</p>
-                                            <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 h-4 ${TYPE_COLORS[e.subject_type] ?? ""}`}>
-                                                {e.subject_type_display}
-                                            </Badge>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">{e.start_time.substring(0, 5)} – {e.end_time.substring(0, 5)} · Batch {e.batch}</p>
-                                        {e.location && (
-                                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                                <MapPin className="h-3 w-3" />{e.location}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </CardContent>
-                    </Card>
-                ))}
+        <div className="flex flex-col h-[calc(100vh-7rem)] min-h-[500px]">
+            <div className="flex-1 min-h-0">
+                <ModernEventCalendar
+                    events={calendarEvents}
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                />
             </div>
         </div>
     );

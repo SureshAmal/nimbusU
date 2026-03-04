@@ -872,7 +872,7 @@ export function SettingsPopup() {
 
       {/* ── Footer ── */}
       <div
-        className="px-4 py-2 border-t mt-4 text-xs text-muted-foreground text-center"
+        className="hidden sm:block px-4 py-2 border-t mt-4 text-xs text-muted-foreground text-center"
         style={{ borderColor: "var(--border)" }}
       >
         <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">Up</kbd>{" "}
@@ -899,7 +899,7 @@ function Row({
 }) {
   return (
     <div
-      className="flex items-center justify-between px-4 py-3.5 border-b gap-4"
+      className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3.5 border-b gap-2 sm:gap-4"
       style={{ borderColor: "var(--border)" }}
     >
       <div className="flex-1 min-w-0">

@@ -109,9 +109,10 @@ export function CustomModal({ open, onOpenChange, title, children, width = "540p
             <div
                 ref={panelRef}
                 onKeyDown={handleKeyDown}
-                className="fixed z-[9999] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[82vh] flex flex-col overflow-hidden outline-none"
+                className="fixed z-[9999] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[90vh] md:max-h-[82vh] flex flex-col overflow-hidden outline-none"
                 style={{
-                    width,
+                    width: "calc(100vw - 2rem)",
+                    maxWidth: width,
                     borderRadius: "var(--radius-xl, 16px)",
                     background: "var(--popover)",
                     border: "1px solid var(--border)",

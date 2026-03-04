@@ -15,4 +15,6 @@ dependencies = [
     "pillow>=12.1.1",
     "psycopg[binary]>=3.3.3",
     "python-decouple>=3.8",
+    "boto3>=1.36.0",
+    "django-storages>=1.14.0",
 ]

@@ -513,29 +513,29 @@ export default function AdminUsersPage() {
                   onValueChange={setRoleFilter}
                   className="w-full sm:w-auto"
                 >
-                  <TabsList className="h-9 w-full sm:w-auto grid grid-cols-4 sm:flex bg-muted/50">
-                    <TabsTrigger value="all" className="text-xs">
+                  <TabsList className="h-9 w-full sm:w-auto flex overflow-x-auto bg-muted/50 no-scrollbar">
+                    <TabsTrigger value="all" className="text-xs shrink-0">
                       All
                     </TabsTrigger>
-                    <TabsTrigger value="student" className="text-xs">
+                    <TabsTrigger value="student" className="text-xs shrink-0">
                       Students
                     </TabsTrigger>
-                    <TabsTrigger value="faculty" className="text-xs">
+                    <TabsTrigger value="faculty" className="text-xs shrink-0">
                       Faculty
                     </TabsTrigger>
-                    <TabsTrigger value="admin" className="text-xs">
+                    <TabsTrigger value="admin" className="text-xs shrink-0">
                       Admins
                     </TabsTrigger>
-                    <TabsTrigger value="dean" className="text-xs">
+                    <TabsTrigger value="dean" className="text-xs shrink-0">
                       Dean
                     </TabsTrigger>
-                    <TabsTrigger value="head" className="text-xs">
+                    <TabsTrigger value="head" className="text-xs shrink-0">
                       Head
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
-                <div className="flex items-center gap-2">
-                  <div className="relative w-full sm:w-64">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="relative flex-1 sm:w-64 sm:flex-none">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
                       placeholder="Filter users..."
@@ -548,10 +548,10 @@ export default function AdminUsersPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-9 text-xs gap-1 hidden sm:flex"
+                      className="h-9 text-xs gap-1"
                       onClick={clearAllFilters}
                     >
-                      <X className="h-3 w-3" /> Clear
+                      <X className="h-3 w-3" /><span className="hidden sm:inline">Clear</span>
                     </Button>
                   )}
                   <Button
@@ -559,16 +559,16 @@ export default function AdminUsersPage() {
                     className="h-9 gap-1 shrink-0"
                     onClick={openCreate}
                   >
-                    <UserPlus className="h-3.5 w-3.5" /> Add User
+                    <UserPlus className="h-3.5 w-3.5" /><span className="hidden sm:inline">Add User</span>
                   </Button>
                 </div>
               </div>
 
               {/* Filter Bar */}
-              <div className="flex flex-wrap items-center gap-2 border-b border-secondary px-4 py-2 bg-muted/30">
-                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+              <div className="flex flex-wrap items-center gap-2 border-b border-secondary px-3 sm:px-4 py-2 bg-muted/30">
+                <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <Select value={schoolFilter} onValueChange={setSchoolFilter}>
-                  <SelectTrigger className="h-8 w-40 text-xs">
+                  <SelectTrigger className="h-8 w-full sm:w-40 text-xs">
                     <SelectValue placeholder="All Schools" />
                   </SelectTrigger>
                   <SelectContent>
@@ -584,8 +584,8 @@ export default function AdminUsersPage() {
                   value={departmentFilter}
                   onValueChange={setDepartmentFilter}
                 >
-                  <SelectTrigger className="h-8 w-45 text-xs">
-                    <SelectValue placeholder="All Departments" />
+                  <SelectTrigger className="h-8 w-[calc(50%-1rem)] sm:w-44 text-xs">
+                    <SelectValue placeholder="All Depts" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Departments</SelectItem>
@@ -601,8 +601,8 @@ export default function AdminUsersPage() {
                     value={semesterFilter}
                     onValueChange={setSemesterFilter}
                   >
-                    <SelectTrigger className="h-8 w-35 text-xs">
-                      <SelectValue placeholder="All Semesters" />
+                    <SelectTrigger className="h-8 w-[calc(50%-1rem)] sm:w-36 text-xs">
+                      <SelectValue placeholder="Semester" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Semesters</SelectItem>
@@ -624,7 +624,7 @@ export default function AdminUsersPage() {
 
               <div
                 className="overflow-auto"
-                style={{ maxHeight: "calc(100vh - 340px)" }}
+                style={{ maxHeight: "calc(100vh - 18rem)" }}
               >
                 {initialLoading ? (
                   <div className="p-6 space-y-3">
@@ -785,7 +785,13 @@ export default function AdminUsersPage() {
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-8 w-8 rounded-[calc(var(--radius)-2px)] border border-border">
                                   <AvatarImage
-                                    src={u.profile_picture || undefined}
+                                    src={
+                                      u.profile_picture
+                                        ? u.profile_picture.startsWith("http")
+                                          ? u.profile_picture
+                                          : `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace("/api/v1", "")}${u.profile_picture}`
+                                        : undefined
+                                    }
                                     alt={u.first_name}
                                   />
                                   <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
@@ -891,8 +897,8 @@ export default function AdminUsersPage() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                  <div className="hidden sm:flex items-center gap-2">
                     <span>Rows per page</span>
                     <Select
                       value={pageSize.toString()}
@@ -980,7 +986,7 @@ export default function AdminUsersPage() {
             onSubmit={handleSubmit}
             className="flex flex-col gap-4 px-4 flex-1 overflow-y-auto"
           >
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>First Name</Label>
                 <Input
@@ -1002,7 +1008,7 @@ export default function AdminUsersPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Email</Label>
                 <Input

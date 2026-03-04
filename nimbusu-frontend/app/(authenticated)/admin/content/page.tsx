@@ -182,7 +182,7 @@ export default function AdminContentPage() {
                   />
                 </div>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-36 h-8 text-xs">
+                  <SelectTrigger className="w-28 sm:w-36 h-8 text-xs">
                     <SelectValue placeholder="All types" />
                   </SelectTrigger>
                   <SelectContent>

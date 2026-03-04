@@ -130,7 +130,7 @@
     --chart-5: oklch(0.769 0.188 70.08);
 
     /* Sidebar — light */
-    --sidebar: oklch(0.985 0 0);
+    --sidebar: var(--background);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.37 0.15 265);
     --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -172,7 +172,7 @@
     --chart-5: oklch(0.645 0.246 16.439);
 
     /* Sidebar — dark */
-    --sidebar: oklch(0.15 0.01 265);
+    --sidebar: var(--background);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.55 0.2 265);
     --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -229,4 +229,14 @@
 .custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: var(--primary) transparent;
+}
+
+/* Hide scrollbar while allowing scroll */
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
 }

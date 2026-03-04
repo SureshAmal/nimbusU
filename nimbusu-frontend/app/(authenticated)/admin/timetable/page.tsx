@@ -366,7 +366,7 @@ export default function AdminTimetablePage() {
 
   // Shared form fields renderer
   const renderFormFields = () => (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div className="space-y-2">
         <Label>Course Offering *</Label>
         <Select
@@ -480,38 +480,11 @@ export default function AdminTimetablePage() {
   );
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] min-h-[600px]">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 px-1">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Timetable Management
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage class schedules, rooms, and timings
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={checkConflicts}
-            className="gap-2"
-          >
-            <AlertTriangle className="h-4 w-4" />
-            Check Conflicts
-          </Button>
-          <Button size="sm" onClick={openCreateDialog} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Entry
-          </Button>
-        </div>
-      </div>
-
-      {/* Filter Bar */}
-      <div className="flex items-center gap-3 mb-4 px-1">
+    <div className="flex flex-col h-[calc(100vh-7rem)] min-h-[500px]">
+      {/* Filter Bar + Actions */}
+      <div className="flex flex-wrap items-center gap-2 mb-2 px-1">
         <Select value={selectedSemester} onValueChange={setSelectedSemester}>
-          <SelectTrigger className="w-[180px] h-9">
+          <SelectTrigger className="w-full sm:w-[160px] h-8 text-sm">
             <SelectValue placeholder="All Semesters" />
           </SelectTrigger>
           <SelectContent>
@@ -528,8 +501,8 @@ export default function AdminTimetablePage() {
           value={selectedSubjectType}
           onValueChange={setSelectedSubjectType}
         >
-          <SelectTrigger className="w-[150px] h-9">
-            <SelectValue placeholder="Subject Type" />
+          <SelectTrigger className="w-[calc(50%-0.25rem)] sm:w-[130px] h-8 text-sm">
+            <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
@@ -542,7 +515,7 @@ export default function AdminTimetablePage() {
         </Select>
 
         <Select value={selectedBatch} onValueChange={setSelectedBatch}>
-          <SelectTrigger className="w-[150px] h-9">
+          <SelectTrigger className="w-[calc(50%-0.25rem)] sm:w-[130px] h-8 text-sm">
             <SelectValue placeholder="Batch" />
           </SelectTrigger>
           <SelectContent>
@@ -555,9 +528,25 @@ export default function AdminTimetablePage() {
           </SelectContent>
         </Select>
 
-        <Badge variant="secondary" className="ml-auto">
-          {filteredEntries.length} entries
+        <Badge variant="secondary" className="text-xs">
+          {filteredEntries.length}
         </Badge>
+
+        <div className="flex items-center gap-1.5 ml-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={checkConflicts}
+            className="h-8 gap-1.5 text-xs"
+          >
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Conflicts</span>
+          </Button>
+          <Button size="sm" onClick={openCreateDialog} className="h-8 gap-1.5 text-xs">
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Add</span>
+          </Button>
+        </div>
       </div>
 
       {/* Calendar */}
@@ -803,7 +792,7 @@ export default function AdminTimetablePage() {
 
       {/* ────────── Create Dialog (new entries only) ────────── */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Create Timetable Entry</DialogTitle>
             <DialogDescription>
@@ -862,7 +851,7 @@ export default function AdminTimetablePage() {
 
       {/* ────────── Conflicts Dialog ────────── */}
       <Dialog open={conflictsDialogOpen} onOpenChange={setConflictsDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />

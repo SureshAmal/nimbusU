@@ -84,7 +84,7 @@ export default function AdminDepartmentsPage() {
     try {
       const { data } = await schoolsService.list();
       setSchools(data.results ?? []);
-    } catch {}
+    } catch { }
   }, []);
 
   const fetchFaculty = useCallback(async () => {
@@ -99,7 +99,7 @@ export default function AdminDepartmentsPage() {
         ...(headRes.data.results ?? []),
         ...(adminRes.data.results ?? []),
       ]);
-    } catch {}
+    } catch { }
   }, []);
 
   useEffect(() => {
@@ -152,7 +152,18 @@ export default function AdminDepartmentsPage() {
     }
   }
 
-  const q = search.toLowerCase();
+  // Debounce state for frontend search filtering
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  // Client-side search and filtering
+  const q = debouncedSearch.toLowerCase();
   const filtered = departments.filter((d) => {
     if (!q) return true;
     return (
@@ -164,7 +175,7 @@ export default function AdminDepartmentsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Departments</h1>
           <p className="text-muted-foreground text-sm">
@@ -197,85 +208,90 @@ export default function AdminDepartmentsPage() {
                 </div>
               </div>
 
-              {initialLoading ? (
-                <div className="p-6 space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-10 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <Table aria-label="Departments">
-                  <Table.Header>
-                    <Table.Row>
-                      <Table.Head isRowHeader>
-                        <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
-                          Code
-                        </span>
-                      </Table.Head>
-                      <Table.Head>
-                        <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
-                          Name
-                        </span>
-                      </Table.Head>
-                      <Table.Head>
-                        <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
-                          School
-                        </span>
-                      </Table.Head>
-                      <Table.Head>
-                        <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
-                          Head
-                        </span>
-                      </Table.Head>
-                      <Table.Head>
-                        <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
-                          Created
-                        </span>
-                      </Table.Head>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {filtered.length === 0 ? (
-                      <Table.Row id="empty">
-                        <Table.Cell
-                          colSpan={5}
-                          className="text-center py-8 text-muted-foreground"
-                        >
-                          <Building2 className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                          <p>No departments found.</p>
-                        </Table.Cell>
+              <div
+                className="overflow-auto"
+                style={{ maxHeight: "calc(100vh - 18rem)" }}
+              >
+                {initialLoading ? (
+                  <div className="p-6 space-y-3">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Skeleton key={i} className="h-10 w-full" />
+                    ))}
+                  </div>
+                ) : (
+                  <Table aria-label="Departments">
+                    <Table.Header className="sticky top-0 z-10 bg-secondary/95 backdrop-blur shadow-sm">
+                      <Table.Row>
+                        <Table.Head isRowHeader>
+                          <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
+                            Code
+                          </span>
+                        </Table.Head>
+                        <Table.Head>
+                          <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
+                            Name
+                          </span>
+                        </Table.Head>
+                        <Table.Head>
+                          <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
+                            School
+                          </span>
+                        </Table.Head>
+                        <Table.Head>
+                          <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
+                            Head
+                          </span>
+                        </Table.Head>
+                        <Table.Head>
+                          <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
+                            Created
+                          </span>
+                        </Table.Head>
                       </Table.Row>
-                    ) : (
-                      filtered.map((d) => (
-                        <Table.Row
-                          key={d.id}
-                          id={d.id}
-                          onContextMenu={() => setCtxDept(d)}
-                        >
-                          <Table.Cell>
-                            <Badge variant="secondary">{d.code}</Badge>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <div className="flex items-center gap-2">
-                              <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                              <span className="font-medium">{d.name}</span>
-                            </div>
-                          </Table.Cell>
-                          <Table.Cell className="text-muted-foreground">
-                            {d.school_name ?? "Independent"}
-                          </Table.Cell>
-                          <Table.Cell className="text-muted-foreground">
-                            {d.head_name ?? "Not assigned"}
-                          </Table.Cell>
-                          <Table.Cell className="text-muted-foreground">
-                            {new Date(d.created_at).toLocaleDateString()}
+                    </Table.Header>
+                    <Table.Body>
+                      {filtered.length === 0 ? (
+                        <Table.Row id="empty">
+                          <Table.Cell
+                            colSpan={5}
+                            className="text-center py-8 text-muted-foreground"
+                          >
+                            <Building2 className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                            <p>No departments found.</p>
                           </Table.Cell>
                         </Table.Row>
-                      ))
-                    )}
-                  </Table.Body>
-                </Table>
-              )}
+                      ) : (
+                        filtered.map((d) => (
+                          <Table.Row
+                            key={d.id}
+                            id={d.id}
+                            onContextMenu={() => setCtxDept(d)}
+                          >
+                            <Table.Cell>
+                              <Badge variant="secondary">{d.code}</Badge>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <span className="font-medium">{d.name}</span>
+                              </div>
+                            </Table.Cell>
+                            <Table.Cell className="text-muted-foreground">
+                              {d.school_name ?? "Independent"}
+                            </Table.Cell>
+                            <Table.Cell className="text-muted-foreground">
+                              {d.head_name ?? "Not assigned"}
+                            </Table.Cell>
+                            <Table.Cell className="text-muted-foreground">
+                              {new Date(d.created_at).toLocaleDateString()}
+                            </Table.Cell>
+                          </Table.Row>
+                        ))
+                      )}
+                    </Table.Body>
+                  </Table>
+                )}
+              </div>
 
               <div className="flex items-center justify-between border-t border-secondary px-4 py-2 text-xs text-muted-foreground">
                 <span>
