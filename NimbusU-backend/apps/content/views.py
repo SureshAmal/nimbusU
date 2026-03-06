@@ -1,5 +1,6 @@
 """Views for the content app."""
 
+from django.db.models import Q
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response
@@ -265,3 +266,109 @@ class ContentCommentReplyListView(generics.ListAPIView):
         return ContentComment.objects.filter(
             parent_id=self.kwargs["pk"]
         ).select_related("author")
+
+
+# ─── Global Search ──────────────────────────────────────────────────────
+
+
+class GlobalSearchView(APIView):
+    """GET /api/v1/content/search/?q={query}"""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        responses={200: inline_serializer("GlobalSearchResponse", {
+            "status": serializers.CharField(),
+            "data": inline_serializer("GlobalSearchData", {
+                "courses": serializers.ListField(child=serializers.DictField()),
+                "content": serializers.ListField(child=serializers.DictField()),
+                "users": serializers.ListField(child=serializers.DictField()),
+            }),
+        })},
+        tags=["Search"],
+    )
+    def get(self, request):
+        q = request.query_params.get("q", "").strip()
+        if not q:
+            return Response({"status": "success", "data": {"courses": [], "content": [], "users": []}})
+
+        user = request.user
+        role = user.role
+        
+        # 1. Courses
+        from apps.academics.models import CourseOffering
+        course_qs = CourseOffering.objects.select_related("course", "semester")
+        if role == "student":
+            course_qs = course_qs.filter(enrollments__student=user)
+        elif role in ["faculty", "head", "dean"]:
+            course_qs = course_qs.filter(faculty=user)
+        
+        course_qs = course_qs.filter(
+            Q(course__name__icontains=q) | 
+            Q(course__code__icontains=q)
+        ).distinct()[:5]
+
+        courses_data = [
+            {
+                "id": str(c.id),
+                "title": c.course.name,
+                "subtitle": f"{c.course.code} · {c.semester.name}",
+                "type": "course",
+                "link": f"/{role}/courses/{c.id}" if role in ["admin", "faculty", "student"] else "#"
+            } for c in course_qs
+        ]
+
+        # 2. Content
+        content_qs = Content.objects.all()
+        if role == "student":
+            content_qs = content_qs.filter(
+                Q(visibility="public") | 
+                Q(course_offering__enrollments__student=user)
+            )
+        elif role != "admin":
+            content_qs = content_qs.filter(
+                Q(visibility="public") | 
+                Q(uploaded_by=user) |
+                Q(course_offering__faculty=user)
+            )
+        
+        content_qs = content_qs.filter(
+            Q(title__icontains=q) | Q(description__icontains=q)
+        ).distinct()[:5]
+
+        content_data = [
+            {
+                "id": str(c.id),
+                "title": c.title,
+                "subtitle": str(c.content_type).capitalize(),
+                "type": "content",
+                "link": f"/{role}/courses/{c.course_offering_id}" if c.course_offering_id else "#"
+            } for c in content_qs
+        ]
+
+        # 3. Users
+        from apps.accounts.models import User
+        user_qs = User.objects.filter(is_active=True).filter(
+            Q(first_name__icontains=q) |
+            Q(last_name__icontains=q) |
+            Q(email__icontains=q)
+        )[:5]
+
+        users_data = [
+            {
+                "id": str(u.id),
+                "title": f"{u.first_name} {u.last_name}",
+                "subtitle": str(u.role).capitalize(),
+                "type": "user",
+                "link": "#"
+            } for u in user_qs
+        ]
+
+        return Response({
+            "status": "success",
+            "data": {
+                "courses": courses_data,
+                "content": content_data,
+                "users": users_data,
+            }
+        })

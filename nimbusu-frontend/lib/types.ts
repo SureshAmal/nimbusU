@@ -21,6 +21,16 @@ export interface User {
     updated_at: string;
     student_profile: StudentProfile | null;
     faculty_profile: FacultyProfile | null;
+    preferences: UserPreferences | null;
+}
+
+export interface UserPreferences {
+    theme: string;
+    calendar_view: string;
+    compact_sidebar: boolean;
+    language: string;
+    timezone: string;
+    date_format: string;
 }
 
 export interface StudentProfile {
@@ -443,6 +453,15 @@ export interface PaginatedResponse<T> {
 export interface Tokens {
     access: string;
     refresh: string;
+}
+
+export interface SiteSettings {
+    institution_name: string;
+    support_email: string;
+    academic_year: string;
+    enable_student_registration: boolean;
+    enable_file_uploads: boolean;
+    enable_forum_discussions: boolean;
 }
 
 export interface Grade {

@@ -23,6 +23,7 @@ from .serializers import (
     UserDetailSerializer,
     UserListSerializer,
     UserBulkCreateSerializer,
+    UserPreferencesSerializer,
 )
 
 User = get_user_model()
@@ -185,6 +186,19 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class UserPreferencesUpdateView(generics.RetrieveUpdateAPIView):
+    """GET/PATCH /api/v1/users/me/preferences/ — Current user preferences."""
+
+    serializer_class = UserPreferencesSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        # Return existing preferences or a new unsaved instance
+        from .models import UserPreferences
+        prefs, _ = UserPreferences.objects.get_or_create(user=self.request.user)
+        return prefs
 
 
 class AvatarUploadView(APIView):

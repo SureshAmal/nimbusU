@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import { usersService } from "@/services/api";
+import { usersService, adminService } from "@/services/api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -316,6 +316,29 @@ function NotificationSettings() {
 /* ───────────────────────────── Appearance ─────────────────────────── */
 
 function AppearanceSettings() {
+    const { user, refreshUser } = useAuth();
+    const prefs = user?.preferences;
+
+    const [calendarView, setCalendarView] = useState(prefs?.calendar_view || "week");
+    const [compactSidebar, setCompactSidebar] = useState(prefs?.compact_sidebar || false);
+    const [saving, setSaving] = useState(false);
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await usersService.updatePreferences({
+                calendar_view: calendarView,
+                compact_sidebar: compactSidebar,
+            });
+            toast.success("Appearance settings updated!");
+            refreshUser?.();
+        } catch {
+            toast.error("Failed to save appearance settings.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     return (
         <div className="space-y-8">
             <div>
@@ -336,7 +359,7 @@ function AppearanceSettings() {
 
                 <div className="space-y-3">
                     <Label>Calendar View</Label>
-                    <Select defaultValue="week">
+                    <Select value={calendarView} onValueChange={setCalendarView}>
                         <SelectTrigger className="w-full sm:w-[200px]">
                             <SelectValue />
                         </SelectTrigger>
@@ -356,8 +379,15 @@ function AppearanceSettings() {
                             <div className="font-medium text-sm">Compact Mode</div>
                             <div className="text-xs text-muted-foreground mt-0.5">Collapse the sidebar by default</div>
                         </div>
-                        <Switch />
+                        <Switch checked={compactSidebar} onCheckedChange={setCompactSidebar} />
                     </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                    <Button onClick={handleSave} disabled={saving} className="gap-2">
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Save Settings
+                    </Button>
                 </div>
             </div>
         </div>
@@ -367,6 +397,27 @@ function AppearanceSettings() {
 /* ───────────────────────────── Language ───────────────────────────── */
 
 function LanguageSettings() {
+    const { user, refreshUser } = useAuth();
+    const prefs = user?.preferences;
+
+    const [language, setLanguage] = useState(prefs?.language || "en");
+    const [timezone, setTimezone] = useState(prefs?.timezone || "asia_kolkata");
+    const [dateFormat, setDateFormat] = useState(prefs?.date_format || "dd_mm_yyyy");
+    const [saving, setSaving] = useState(false);
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await usersService.updatePreferences({ language, timezone, date_format: dateFormat });
+            toast.success("Language & Region settings updated!");
+            refreshUser?.();
+        } catch {
+            toast.error("Failed to save language settings.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     return (
         <div className="space-y-8">
             <div>
@@ -379,7 +430,7 @@ function LanguageSettings() {
             <div className="space-y-6 max-w-xl">
                 <div className="space-y-2">
                     <Label>Language</Label>
-                    <Select defaultValue="en">
+                    <Select value={language} onValueChange={setLanguage}>
                         <SelectTrigger className="w-full sm:w-[250px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="en">English</SelectItem>
@@ -391,7 +442,7 @@ function LanguageSettings() {
                 </div>
                 <div className="space-y-2">
                     <Label>Timezone</Label>
-                    <Select defaultValue="asia_kolkata">
+                    <Select value={timezone} onValueChange={setTimezone}>
                         <SelectTrigger className="w-full sm:w-[250px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="asia_kolkata">Asia/Kolkata (IST)</SelectItem>
@@ -403,7 +454,7 @@ function LanguageSettings() {
                 </div>
                 <div className="space-y-2">
                     <Label>Date Format</Label>
-                    <Select defaultValue="dd_mm_yyyy">
+                    <Select value={dateFormat} onValueChange={setDateFormat}>
                         <SelectTrigger className="w-full sm:w-[250px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="dd_mm_yyyy">DD/MM/YYYY</SelectItem>
@@ -411,6 +462,13 @@ function LanguageSettings() {
                             <SelectItem value="yyyy_mm_dd">YYYY-MM-DD</SelectItem>
                         </SelectContent>
                     </Select>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                    <Button onClick={handleSave} disabled={saving} className="gap-2">
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Save Settings
+                    </Button>
                 </div>
             </div>
         </div>
@@ -420,6 +478,48 @@ function LanguageSettings() {
 /* ───────────────────────────── Site Settings (Admin) ──────────────── */
 
 function SiteSettings() {
+    const [settings, setSettings] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const res = await adminService.siteSettings.get();
+                setSettings(res.data);
+            } catch (error) {
+                toast.error("Failed to load site settings");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSettings();
+    }, []);
+
+    const handleChange = (field: string, value: any) => {
+        setSettings((prev: any) => ({ ...prev, [field]: value }));
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await adminService.siteSettings.update(settings);
+            toast.success("Site settings updated!");
+        } catch {
+            toast.error("Failed to save site settings.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex h-40 items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8">
             <div>
@@ -430,15 +530,24 @@ function SiteSettings() {
             <div className="space-y-6 max-w-xl">
                 <div className="space-y-2">
                     <Label>Institution Name</Label>
-                    <Input defaultValue="NimbusU University" />
+                    <Input
+                        value={settings?.institution_name || ""}
+                        onChange={(e) => handleChange("institution_name", e.target.value)}
+                    />
                 </div>
                 <div className="space-y-2">
                     <Label>Support Email</Label>
-                    <Input defaultValue="support@nimbusu.edu" />
+                    <Input
+                        value={settings?.support_email || ""}
+                        onChange={(e) => handleChange("support_email", e.target.value)}
+                    />
                 </div>
                 <div className="space-y-2">
                     <Label>Academic Year</Label>
-                    <Input defaultValue="2025-2026" />
+                    <Input
+                        value={settings?.academic_year || ""}
+                        onChange={(e) => handleChange("academic_year", e.target.value)}
+                    />
                 </div>
 
                 <Separator />
@@ -446,26 +555,29 @@ function SiteSettings() {
                 <div className="space-y-4">
                     <h3 className="font-medium">Feature Toggles</h3>
                     {[
-                        { label: "Student Self-Registration", description: "Allow students to create their own accounts", defaultOn: false },
-                        { label: "File Uploads", description: "Allow file uploads in content & assignments", defaultOn: true },
-                        { label: "Forum Discussions", description: "Enable course discussion forums", defaultOn: true },
+                        { id: "enable_student_registration", label: "Student Self-Registration", description: "Allow students to create their own accounts" },
+                        { id: "enable_file_uploads", label: "File Uploads", description: "Allow file uploads in content & assignments" },
+                        { id: "enable_forum_discussions", label: "Forum Discussions", description: "Enable course discussion forums" },
                     ].map((item) => (
                         <div
-                            key={item.label}
+                            key={item.id}
                             className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/30 transition-colors"
                         >
                             <div>
                                 <div className="font-medium text-sm">{item.label}</div>
                                 <div className="text-xs text-muted-foreground mt-0.5">{item.description}</div>
                             </div>
-                            <Switch defaultChecked={item.defaultOn} />
+                            <Switch
+                                checked={!!settings?.[item.id]}
+                                onCheckedChange={(checked) => handleChange(item.id, checked)}
+                            />
                         </div>
                     ))}
                 </div>
 
                 <div className="flex items-center gap-3 pt-2">
-                    <Button className="gap-2">
-                        <Save className="h-4 w-4" />
+                    <Button onClick={handleSave} disabled={saving} className="gap-2">
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                         Save Settings
                     </Button>
                 </div>

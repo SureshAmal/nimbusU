@@ -35,3 +35,35 @@ class RequestLog(models.Model):
 
     def __str__(self):
         return f"{self.method} {self.path} → {self.status_code} ({self.response_time_ms:.0f}ms)"
+
+
+class SiteSettings(models.Model):
+    """Global institution settings (Singleton)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    institution_name = models.CharField(max_length=255, default="NimbusU University")
+    support_email = models.EmailField(default="support@nimbusu.edu")
+    academic_year = models.CharField(max_length=20, default="2024-2025")
+    enable_student_registration = models.BooleanField(default=False)
+    enable_file_uploads = models.BooleanField(default=True)
+    enable_forum_discussions = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "site_settings"
+        verbose_name_plural = "Site Settings"
+
+    def __str__(self):
+        return self.institution_name
+
+    def save(self, *args, **kwargs):
+        """Ensure only one instance exists."""
+        self.pk = self.id if self.id else self.pk
+        if SiteSettings.objects.exists() and not self.pk:
+            return SiteSettings.objects.first()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        """Load the singleton instance."""
+        obj, _ = cls.objects.get_or_create()
+        return obj

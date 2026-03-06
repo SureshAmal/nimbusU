@@ -11,7 +11,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdmin
-from .models import RequestLog
+from .models import RequestLog, SiteSettings
+from .serializers import SiteSettingsSerializer
 
 
 class TelemetryStatsView(APIView):
@@ -196,3 +197,36 @@ class TelemetryStatsView(APIView):
             "recent_errors": recent_errors,
             "endpoint_health": endpoint_health,
         })
+
+
+class SiteSettingsView(APIView):
+    """GET/PATCH /api/v1/telemetry/site-settings/ — Global site settings."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    # Only GET is allowed for non-admins, PATCH requires admin
+    def get_permissions(self):
+        if self.request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+            return [permissions.IsAuthenticated(), IsAdmin()]
+        return super().get_permissions()
+
+    @extend_schema(
+        responses={200: SiteSettingsSerializer},
+        tags=["Admin"],
+    )
+    def get(self, request):
+        settings = SiteSettings.load()
+        serializer = SiteSettingsSerializer(settings)
+        return Response(serializer.data)
+
+    @extend_schema(
+        request=SiteSettingsSerializer,
+        responses={200: SiteSettingsSerializer},
+        tags=["Admin"],
+    )
+    def patch(self, request):
+        settings = SiteSettings.load()
+        serializer = SiteSettingsSerializer(settings, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)

@@ -34,6 +34,7 @@ import type {
     GradingRubric,
     RubricCriteria,
     AssignmentGroup,
+    SiteSettings,
 } from "@/lib/types";
 
 /* ─── Users ───────────────────────────────────────────────────────── */
@@ -62,6 +63,8 @@ export const usersService = {
     },
     changePassword: (data: { old_password: string; new_password: string }) =>
         api.post("/auth/password/change/", data),
+    preferences: () => api.get<any>("/users/me/preferences/"),
+    updatePreferences: (data: any) => api.patch<any>("/users/me/preferences/", data),
 };
 
 /* ─── Schools ─────────────────────────────────────────────────────── */
@@ -136,14 +139,14 @@ export const offeringsService = {
 
 export const enrollmentsService = {
     create: (data: { student: string; course_offering: string }) =>
-        api.post<Enrollment>("/academics/enrollments/", data),
+        api.post<Enrollment>("/enrollments/", data),
     mine: () =>
-        api.get<PaginatedResponse<Enrollment>>("/academics/enrollments/me/"),
+        api.get<PaginatedResponse<Enrollment>>("/enrollments/me/"),
     bulkCreate: (data: any) =>
-        api.post<{ status: string; message: string }>("/academics/enrollments/bulk-create/", data),
+        api.post<{ status: string; message: string }>("/enrollments/bulk-create/", data),
     export: (params?: Record<string, string>) =>
-        api.get<Blob>("/academics/enrollments/export/", { params, responseType: "blob" }),
-    delete: (id: string) => api.delete(`/academics/enrollments/${id}/`),
+        api.get<Blob>("/enrollments/export/", { params, responseType: "blob" }),
+    delete: (id: string) => api.delete(`/enrollments/${id}/`),
 };
 
 export const prerequisitesService = {
@@ -244,6 +247,7 @@ export const contentService = {
     download: (id: string) => api.get(`/content/${id}/download/`),
     stats: (id: string) => api.get(`/content/${id}/stats/`),
     recent: () => api.get<Content[]>("/content/recent/"),
+    search: (query: string) => api.get(`/content/search/`, { params: { q: query } }),
     folders: {
         list: (params?: Record<string, string>) =>
             api.get<PaginatedResponse<ContentFolder>>("/content/folders/", { params }),
@@ -399,6 +403,10 @@ export const notificationsService = {
 export const adminService = {
     dashboardStats: () => api.get("/admin/dashboard-stats/"),
     telemetryStats: () => api.get("/admin/telemetry/"),
+    siteSettings: {
+        get: () => api.get<SiteSettings>("/telemetry/site-settings/"),
+        update: (data: Partial<SiteSettings>) => api.patch<SiteSettings>("/telemetry/site-settings/", data),
+    },
 };
 
 /* ─── Audit Logs ──────────────────────────────────────────────────── */

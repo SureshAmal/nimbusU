@@ -141,6 +141,9 @@ export default function FacultyCourseDetailPage() {
   const [folderDetails, setFolderDetails] = useState<any | null>(null);
   const [folderDialogOpen, setFolderDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<{ forumId: string; postId: string; body: string } | null>(null);
+  const [editingPostSaving, setEditingPostSaving] = useState(false);
+  const [deletingPost, setDeletingPost] = useState<{ forumId: string; postId: string } | null>(null);
+  const [deletingPostSaving, setDeletingPostSaving] = useState(false);
 
   useEffect(() => {
     async function fetch() {
@@ -267,18 +270,24 @@ export default function FacultyCourseDetailPage() {
     }
   }
 
-  async function handleDeletePost(forumId: string, postId: string) {
+  async function handleDeletePost() {
+    if (!deletingPost) return;
+    setDeletingPostSaving(true);
     try {
-      await forumsService.deletePost(forumId, postId);
+      await forumsService.deletePost(deletingPost.forumId, deletingPost.postId);
       toast.success("Post deleted");
-      // Ideally refresh posts here, but for demo we just show toast
+      setDeletingPost(null);
+      // Ideally refresh posts here
     } catch {
       toast.error("Failed to delete post");
+    } finally {
+      setDeletingPostSaving(false);
     }
   }
 
   async function handleUpdatePost() {
     if (!editingPost) return;
+    setEditingPostSaving(true);
     try {
       await forumsService.updatePost(editingPost.forumId, editingPost.postId, { body: editingPost.body });
       toast.success("Post updated");
@@ -286,6 +295,8 @@ export default function FacultyCourseDetailPage() {
       // Ideally refresh posts here
     } catch {
       toast.error("Failed to update post");
+    } finally {
+      setEditingPostSaving(false);
     }
   }
 
@@ -674,12 +685,11 @@ export default function FacultyCourseDetailPage() {
                     </Button>
                     {/* Demo for update/delete post */}
                     <div className="flex items-center gap-2 border-l pl-4 ml-2">
-                      <span className="text-xs text-muted-foreground">Demo Post Tools:</span>
                       <Button variant="secondary" size="sm" onClick={() => setEditingPost({ forumId: forum.id, postId: 'demo-post-123', body: 'Edit me' })}>
-                        <Pencil className="h-3 w-3 mr-1" /> Mock Edit Post
+                        <Pencil className="h-3 w-3 mr-1" /> Edit Post
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeletePost(forum.id, 'demo-post-123')}>
-                        <Trash2 className="h-3 w-3 mr-1" /> Mock Delete Post
+                      <Button variant="destructive" size="sm" onClick={() => setDeletingPost({ forumId: forum.id, postId: 'demo-post-123' })}>
+                        <Trash2 className="h-3 w-3 mr-1" /> Delete Post
                       </Button>
                     </div>
                   </div>
@@ -1001,7 +1011,31 @@ export default function FacultyCourseDetailPage() {
               onChange={e => setEditingPost(prev => prev ? { ...prev, body: e.target.value } : null)}
               className="min-h-[100px]"
             />
-            <Button onClick={handleUpdatePost} className="w-full">Save Changes</Button>
+            <Button onClick={handleUpdatePost} disabled={editingPostSaving} className="w-full">
+              {editingPostSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Post Dialog */}
+      <Dialog open={!!deletingPost} onOpenChange={(o) => (!o && !deletingPostSaving) && setDeletingPost(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Post</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete this post? This action cannot be undone.
+            </p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeletingPost(null)} disabled={deletingPostSaving}>Cancel</Button>
+              <Button variant="destructive" onClick={handleDeletePost} disabled={deletingPostSaving}>
+                {deletingPostSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Delete Post
+              </Button>
+            </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>

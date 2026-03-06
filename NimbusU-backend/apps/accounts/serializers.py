@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from .models import AuditLog, FacultyProfile, StudentProfile
+from .models import AuditLog, FacultyProfile, StudentProfile, UserPreferences
 
 User = get_user_model()
 
@@ -38,6 +38,15 @@ class FacultyProfileSerializer(serializers.ModelSerializer):
         }
 
 
+class UserPreferencesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserPreferences
+        fields = [
+            "theme", "calendar_view", "compact_sidebar",
+            "language", "timezone", "date_format"
+        ]
+
+
 class UserListSerializer(serializers.ModelSerializer):
     """Lightweight user serializer for listings."""
 
@@ -50,6 +59,7 @@ class UserListSerializer(serializers.ModelSerializer):
     program_name = serializers.SerializerMethodField()
     student_profile = StudentProfileSerializer(required=False, allow_null=True)
     faculty_profile = FacultyProfileSerializer(required=False, allow_null=True)
+    preferences = UserPreferencesSerializer(read_only=True)
 
     class Meta:
         model = User
@@ -58,7 +68,7 @@ class UserListSerializer(serializers.ModelSerializer):
             "department", "department_name", "school_name", "program_name",
             "profile_picture", "phone",
             "is_active", "last_login", "created_at",
-            "student_profile", "faculty_profile",
+            "student_profile", "faculty_profile", "preferences",
         ]
         read_only_fields = ["id", "created_at", "last_login"]
 
@@ -83,6 +93,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
     program_name = serializers.SerializerMethodField()
     student_profile = StudentProfileSerializer(required=False, allow_null=True)
     faculty_profile = FacultyProfileSerializer(required=False, allow_null=True)
+    preferences = UserPreferencesSerializer(read_only=True)
 
     class Meta:
         model = User
@@ -92,7 +103,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "profile_picture",
             "phone", "is_active", "failed_login_attempts",
             "last_login", "created_at", "updated_at",
-            "student_profile", "faculty_profile",
+            "student_profile", "faculty_profile", "preferences",
         ]
         read_only_fields = ["id", "created_at", "updated_at", "last_login"]
 

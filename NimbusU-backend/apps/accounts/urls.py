@@ -20,6 +20,7 @@ urlpatterns = [
     path("users/", views.UserListCreateView.as_view(), name="user-list-create"),
     path("users/bulk-create/", views.UserBulkCreateView.as_view(), name="user-bulk-create"),
     path("users/me/", views.MeView.as_view(), name="me"),
+    path("users/me/preferences/", views.UserPreferencesUpdateView.as_view(), name="me-preferences"),
     path("users/me/avatar/", views.AvatarUploadView.as_view(), name="avatar-upload"),
     path("users/<uuid:pk>/", views.UserDetailView.as_view(), name="user-detail"),
     path("users/<uuid:pk>/reset-password/", views.UserResetPasswordView.as_view(), name="user-reset-password"),

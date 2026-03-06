@@ -7,6 +7,8 @@ from . import views
 app_name = "content"
 
 urlpatterns = [
+    # Search
+    path("content/search/", views.GlobalSearchView.as_view(), name="search-global"),
     # Folders
     path("content/folders/", views.ContentFolderListCreateView.as_view(), name="folder-list-create"),
     path("content/folders/<uuid:pk>/", views.ContentFolderDetailView.as_view(), name="folder-detail"),
