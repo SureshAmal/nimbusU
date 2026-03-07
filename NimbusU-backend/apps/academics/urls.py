@@ -48,6 +48,7 @@ urlpatterns = [
     # Daily Questions
     path("academics/daily-questions/", views.DailyQuestionListCreateView.as_view(), name="daily-question-list-create"),
     path("academics/daily-questions/stats/", views.DailyQuestionStatsView.as_view(), name="daily-question-stats"),
+    path("academics/daily-questions/student-scores/", views.FacultyDailyQuestionStudentScoresView.as_view(), name="daily-question-student-scores"),
     path("academics/daily-questions/my-assignments/", views.MyDailyQuestionAssignmentsView.as_view(), name="daily-question-my-assignments"),
     path("academics/daily-questions/performance/", views.MyDailyQuestionPerformanceView.as_view(), name="daily-question-performance"),
     path("academics/daily-questions/<uuid:pk>/", views.DailyQuestionDetailView.as_view(), name="daily-question-detail"),

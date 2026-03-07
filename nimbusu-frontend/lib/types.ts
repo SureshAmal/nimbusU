@@ -629,3 +629,22 @@ export interface StudentDailyQuestionPerformance {
     current_streak: number;
     longest_streak: number;
 }
+
+export interface FacultyDailyQuestionStudentScore {
+    student: string;
+    student_name: string;
+    email: string;
+    batch?: string | null;
+    division?: string | null;
+    course_names: string[];
+    total_assigned: number;
+    total_submitted: number;
+    total_correct: number;
+    total_points_earned: number;
+    total_time_seconds: number;
+    average_time_seconds: number;
+    accuracy_rate: number;
+    current_streak: number;
+    longest_streak: number;
+    latest_activity?: string | null;
+}

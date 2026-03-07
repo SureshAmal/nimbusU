@@ -28,6 +28,7 @@ from .serializers import (
     CourseOfferingSerializer,
     CoursePrerequisiteSerializer,
     CourseSerializer,
+    FacultyDailyQuestionStudentScoreSerializer,
     DailyQuestionAssignmentSerializer,
     DailyQuestionListSerializer,
     DailyQuestionSerializer,
@@ -959,6 +960,136 @@ class DailyQuestionStatsView(APIView):
                 "accuracy_rate": accuracy_rate,
             }
         )
+
+
+class FacultyDailyQuestionStudentScoresView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrFaculty]
+
+    @extend_schema(
+        tags=["Daily Questions"],
+        responses=FacultyDailyQuestionStudentScoreSerializer(many=True),
+    )
+    def get(self, request):
+        assignments = DailyQuestionAssignment.objects.select_related(
+            "student",
+            "student__student_profile",
+            "question__course_offering__course",
+            "question__created_by",
+        )
+
+        if getattr(request.user, "role", None) != "admin":
+            assignments = assignments.filter(question__created_by=request.user)
+
+        course_offering = request.GET.get("course_offering")
+        question_id = request.GET.get("question")
+        search = (request.GET.get("search") or "").strip().lower()
+
+        if course_offering:
+            assignments = assignments.filter(question__course_offering_id=course_offering)
+        if question_id:
+            assignments = assignments.filter(question_id=question_id)
+
+        student_rows = {}
+        score_statuses = {
+            DailyQuestionAssignment.Status.SUBMITTED,
+            DailyQuestionAssignment.Status.GRADED,
+        }
+
+        for assignment in assignments:
+            student = assignment.student
+            row = student_rows.setdefault(
+                student.id,
+                {
+                    "student": student.id,
+                    "student_name": student.full_name,
+                    "email": student.email,
+                    "batch": getattr(getattr(student, "student_profile", None), "batch", ""),
+                    "division": getattr(getattr(student, "student_profile", None), "division", ""),
+                    "course_names": set(),
+                    "total_assigned": 0,
+                    "total_submitted": 0,
+                    "total_correct": 0,
+                    "total_points_earned": 0,
+                    "total_time_seconds": 0,
+                    "average_time_seconds": 0,
+                    "accuracy_rate": 0.0,
+                    "current_streak": 0,
+                    "longest_streak": 0,
+                    "latest_activity": None,
+                },
+            )
+
+            row["total_assigned"] += 1
+            if assignment.question.course_offering:
+                row["course_names"].add(assignment.question.course_offering.course.name)
+
+            if assignment.status in score_statuses:
+                row["total_submitted"] += 1
+            if assignment.is_correct:
+                row["total_correct"] += 1
+
+            row["total_points_earned"] += assignment.points_earned
+            row["total_time_seconds"] += assignment.time_taken_seconds or 0
+
+            latest_activity = assignment.submitted_at or assignment.started_at or assignment.assigned_at
+            if latest_activity and (
+                row["latest_activity"] is None or latest_activity > row["latest_activity"]
+            ):
+                row["latest_activity"] = latest_activity
+
+        if not student_rows:
+            return Response([])
+
+        performance_rows = (
+            StudentDailyQuestionPerformance.objects.filter(student_id__in=student_rows.keys())
+            .order_by("student_id", "-date")
+        )
+        performance_map = defaultdict(list)
+        for performance in performance_rows:
+            performance_map[performance.student_id].append(performance)
+
+        results = []
+        for student_id, row in student_rows.items():
+            performances = performance_map.get(student_id, [])
+            latest_performance = performances[0] if performances else None
+            row["current_streak"] = latest_performance.current_streak if latest_performance else 0
+            row["longest_streak"] = max(
+                [performance.longest_streak for performance in performances], default=0
+            )
+            row["course_names"] = sorted(row["course_names"])
+            row["average_time_seconds"] = int(
+                row["total_time_seconds"] / row["total_submitted"]
+            ) if row["total_submitted"] else 0
+            row["accuracy_rate"] = round(
+                (row["total_correct"] / row["total_submitted"]) * 100, 2
+            ) if row["total_submitted"] else 0.0
+
+            if search:
+                haystack = " ".join(
+                    [
+                        row["student_name"],
+                        row["email"],
+                        row["batch"] or "",
+                        row["division"] or "",
+                        " ".join(row["course_names"]),
+                    ]
+                ).lower()
+                if search not in haystack:
+                    continue
+
+            results.append(row)
+
+        results.sort(
+            key=lambda item: (
+                -item["total_points_earned"],
+                -item["accuracy_rate"],
+                -item["total_correct"],
+                item["student_name"],
+            )
+        )
+
+        serializer = FacultyDailyQuestionStudentScoreSerializer(results, many=True)
+        return Response(serializer.data)
 
 
 class MyDailyQuestionAssignmentsView(generics.ListAPIView):

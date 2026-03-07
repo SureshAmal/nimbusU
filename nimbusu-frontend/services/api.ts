@@ -42,6 +42,7 @@ import type {
     DailyQuestion,
     DailyQuestionAssignment,
     DailyQuestionResponse,
+    FacultyDailyQuestionStudentScore,
 } from "@/lib/types";
 
 type DailyQuestionPayload = Record<string, unknown>;
@@ -207,6 +208,8 @@ export const dailyQuestionsService = {
         average_time_seconds: number;
         accuracy_rate: number;
     }>("/academics/daily-questions/stats/"),
+    studentScores: (params?: Record<string, string>) =>
+        api.get<FacultyDailyQuestionStudentScore[]>("/academics/daily-questions/student-scores/", { params }),
     myAssignments: () =>
         api.get<PaginatedResponse<DailyQuestionAssignment>>("/academics/daily-questions/my-assignments/"),
     performance: () =>

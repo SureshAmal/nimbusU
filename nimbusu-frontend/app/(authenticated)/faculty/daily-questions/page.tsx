@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { usePageHeader } from "@/lib/page-header";
 import {
@@ -15,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CustomModal } from "@/components/ui/custom-modal";
+import { CustomSelect, type SelectOption } from "@/components/ui/custom-select";
 import {
   Select,
   SelectContent,
@@ -55,6 +58,9 @@ import {
   Eye,
   Send,
   BarChart3,
+  Search,
+  UserCheck,
+  UsersRound,
 } from "lucide-react";
 
 const QUESTION_TYPES = [
@@ -94,6 +100,7 @@ export default function FacultyDailyQuestionsPage() {
   const [assignSheetOpen, setAssignSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [assignLoading, setAssignLoading] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [viewQuestion, setViewQuestion] = useState<DailyQuestion | null>(null);
   const [selectedQuestion, setSelectedQuestion] =
@@ -128,6 +135,9 @@ export default function FacultyDailyQuestionsPage() {
     student_ids: [] as string[],
     batch: "",
   });
+  const [assignSearch, setAssignSearch] = useState("");
+  const [assignBatchFilter, setAssignBatchFilter] = useState("all");
+  const [assignStudents, setAssignStudents] = useState<User[]>([]);
 
   useEffect(() => {
     setHeader({
@@ -224,7 +234,104 @@ export default function FacultyDailyQuestionsPage() {
   function openAssign(q: DailyQuestion) {
     setSelectedQuestion(q);
     setAssignForm({ student_ids: [], batch: "" });
+    setAssignSearch("");
+    setAssignBatchFilter("all");
+    setAssignStudents([]);
     setAssignSheetOpen(true);
+    void loadAssignableStudents(q);
+  }
+
+  async function loadAssignableStudents(question: DailyQuestion) {
+    setAssignLoading(true);
+    try {
+      if (question.course_offering) {
+        const res = await offeringsService.students(question.course_offering);
+        setAssignStudents(res.data.results ?? res.data ?? []);
+      } else {
+        setAssignStudents(students);
+      }
+    } catch {
+      toast.error("Failed to load students for assignment");
+      setAssignStudents(students);
+    } finally {
+      setAssignLoading(false);
+    }
+  }
+
+  const batchOptions = useMemo(() => {
+    const values = Array.from(
+      new Set(
+        assignStudents
+          .map((student) => student.student_profile?.batch)
+          .filter((batch): batch is string => Boolean(batch)),
+      ),
+    ).sort();
+    return values;
+  }, [assignStudents]);
+
+  const assignBatchSelectOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: "all", label: "All batches" },
+      ...batchOptions.map((batch) => ({
+        value: batch,
+        label: `Batch ${batch}`,
+      })),
+    ],
+    [batchOptions],
+  );
+
+  const filteredAssignStudents = useMemo(() => {
+    const query = assignSearch.trim().toLowerCase();
+
+    return assignStudents.filter((student) => {
+      const batch = student.student_profile?.batch || "";
+      const division = student.student_profile?.division || "";
+      const matchesBatch = assignBatchFilter === "all" || batch === assignBatchFilter;
+      const matchesQuery =
+        query.length === 0 ||
+        [
+          `${student.first_name} ${student.last_name}`,
+          student.email,
+          batch,
+          division,
+          student.student_profile?.register_no || "",
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+
+      return matchesBatch && matchesQuery;
+    });
+  }, [assignStudents, assignSearch, assignBatchFilter]);
+
+  const visibleSelectedCount = filteredAssignStudents.filter((student) =>
+    assignForm.student_ids.includes(student.id),
+  ).length;
+
+  function toggleStudent(studentId: string, checked: boolean) {
+    setAssignForm((prev) => ({
+      ...prev,
+      student_ids: checked
+        ? [...prev.student_ids, studentId]
+        : prev.student_ids.filter((id) => id !== studentId),
+    }));
+  }
+
+  function selectVisibleStudents() {
+    setAssignForm((prev) => ({
+      ...prev,
+      student_ids: Array.from(
+        new Set([...prev.student_ids, ...filteredAssignStudents.map((student) => student.id)]),
+      ),
+    }));
+  }
+
+  function clearVisibleStudents() {
+    const visibleIds = new Set(filteredAssignStudents.map((student) => student.id));
+    setAssignForm((prev) => ({
+      ...prev,
+      student_ids: prev.student_ids.filter((id) => !visibleIds.has(id)),
+    }));
   }
 
   async function handleSubmit() {
@@ -365,9 +472,16 @@ export default function FacultyDailyQuestionsPage() {
         <p className="text-sm text-muted-foreground">
           {questions.length} questions
         </p>
-        <Button onClick={openCreate} size="sm">
-          <Plus className="h-4 w-4 mr-1" /> New Question
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/faculty/daily-questions/scores">
+              <BarChart3 className="mr-1 h-4 w-4" /> Student Scores
+            </Link>
+          </Button>
+          <Button onClick={openCreate} size="sm">
+            <Plus className="h-4 w-4 mr-1" /> New Question
+          </Button>
+        </div>
       </div>
 
       {/* List */}
@@ -613,64 +727,160 @@ export default function FacultyDailyQuestionsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={assignSheetOpen} onOpenChange={setAssignSheetOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto px-4">
-          <DialogHeader>
-            <DialogTitle>Assign to Students</DialogTitle>
-            <DialogDescription>{selectedQuestion?.title}</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>Select Students</Label>
-              <div className="max-h-[calc(100vh-19rem)] overflow-y-auto border rounded-md p-2 space-y-1">
-                {students.map((s) => (
-                  <label
-                    key={s.id}
-                    className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={assignForm.student_ids.includes(s.id)}
-                      onChange={(e) =>
-                        setAssignForm({
-                          ...assignForm,
-                          student_ids: e.target.checked
-                            ? [...assignForm.student_ids, s.id]
-                            : assignForm.student_ids.filter(
-                                (id) => id !== s.id,
-                              ),
-                        })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <span className="text-sm">
-                      {s.first_name} {s.last_name}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {s.email}
-                    </span>
-                  </label>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {assignForm.student_ids.length} selected
-              </p>
+      <CustomModal
+        open={assignSheetOpen}
+        onOpenChange={setAssignSheetOpen}
+        title={
+          <div>
+            <p className="font-semibold">Assign to Students</p>
+            <p className="text-sm font-normal text-muted-foreground">
+              {selectedQuestion?.title}
+            </p>
+          </div>
+        }
+        width="760px"
+        actions={
+          <Badge variant="outline" className="mr-2">
+            {assignForm.student_ids.length} selected
+          </Badge>
+        }
+        footer={
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <p className="text-xs text-muted-foreground">
+              Showing {filteredAssignStudents.length} student
+              {filteredAssignStudents.length === 1 ? "" : "s"}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setAssignSheetOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAssign}
+                disabled={saving || assignForm.student_ids.length === 0}
+              >
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Assign Students
+              </Button>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignSheetOpen(false)}>
-              Cancel
+        }
+      >
+        <div className="space-y-4 p-3 sm:p-4">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_auto_auto] md:items-center">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={assignSearch}
+                onChange={(e) => setAssignSearch(e.target.value)}
+                placeholder="Search by name, email, batch, or register number"
+                className="pl-9"
+              />
+            </div>
+
+            <div className="min-w-0 md:w-[180px]">
+              <CustomSelect
+                value={assignBatchFilter}
+                options={assignBatchSelectOptions}
+                onChange={setAssignBatchFilter}
+                placeholder="Filter by batch"
+              />
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={selectVisibleStudents}
+              disabled={filteredAssignStudents.length === 0}
+            >
+              <UserCheck className="mr-2 h-4 w-4" /> Select visible
             </Button>
             <Button
-              onClick={handleAssign}
-              disabled={saving || assignForm.student_ids.length === 0}
+              type="button"
+              variant="ghost"
+              onClick={clearVisibleStudents}
+              disabled={visibleSelectedCount === 0}
             >
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Assign
+              Clear visible
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <UsersRound className="h-3.5 w-3.5" />
+              {assignStudents.length} eligible
+            </span>
+            <span>•</span>
+            <span>{filteredAssignStudents.length} matching filters</span>
+            <span>•</span>
+            <span>{assignForm.student_ids.length} selected</span>
+          </div>
+
+          <div
+            className="max-h-[min(58vh,540px)] overflow-y-auto rounded-xl border"
+            style={{ borderRadius: "var(--radius-lg)", borderColor: "var(--border)" }}
+          >
+            {assignLoading ? (
+              <div className="space-y-2 p-3">
+                {[1, 2, 3, 4, 5].map((item) => (
+                  <Skeleton key={item} className="h-14" />
+                ))}
+              </div>
+            ) : filteredAssignStudents.length === 0 ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">
+                No students match the current search.
+              </div>
+            ) : (
+              <div className="divide-y">
+                {filteredAssignStudents.map((student) => {
+                  const checked = assignForm.student_ids.includes(student.id);
+                  const batch = student.student_profile?.batch;
+                  const division = student.student_profile?.division;
+                  const registerNo = student.student_profile?.register_no;
+
+                  return (
+                    <label
+                      key={student.id}
+                      className="flex cursor-pointer items-start gap-3 px-3 py-3 transition-colors hover:bg-accent/30"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => toggleStudent(student.id, e.target.checked)}
+                        className="mt-1 h-4 w-4 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {student.first_name} {student.last_name}
+                          </span>
+                          {batch && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Batch {batch}
+                            </Badge>
+                          )}
+                          {division && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Div {division}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          {student.email}
+                        </p>
+                        {registerNo && (
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            Register No: {registerNo}
+                          </p>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </CustomModal>
 
       <AlertDialog
         open={!!deleteQuestion}

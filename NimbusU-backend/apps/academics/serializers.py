@@ -321,3 +321,22 @@ class StudentDailyQuestionPerformanceSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id"]
 
+
+class FacultyDailyQuestionStudentScoreSerializer(serializers.Serializer):
+    student = serializers.UUIDField()
+    student_name = serializers.CharField()
+    email = serializers.EmailField()
+    batch = serializers.CharField(allow_blank=True, allow_null=True)
+    division = serializers.CharField(allow_blank=True, allow_null=True)
+    course_names = serializers.ListField(child=serializers.CharField())
+    total_assigned = serializers.IntegerField()
+    total_submitted = serializers.IntegerField()
+    total_correct = serializers.IntegerField()
+    total_points_earned = serializers.IntegerField()
+    total_time_seconds = serializers.IntegerField()
+    average_time_seconds = serializers.IntegerField()
+    accuracy_rate = serializers.FloatField()
+    current_streak = serializers.IntegerField()
+    longest_streak = serializers.IntegerField()
+    latest_activity = serializers.DateTimeField(allow_null=True)
+
