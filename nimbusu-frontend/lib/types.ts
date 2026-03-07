@@ -497,14 +497,18 @@ export interface RoomBooking {
     id: string;
     room: string;
     room_name?: string;
+    building?: string;
     booked_by: string;
     booked_by_name?: string;
+    date: string;
     purpose: string;
     start_time: string;
     end_time: string;
     status: "pending" | "approved" | "rejected";
     approved_by?: string | null;
+    approved_by_name?: string | null;
     created_at: string;
+    updated_at?: string;
 }
 
 export interface SubstituteFaculty {
